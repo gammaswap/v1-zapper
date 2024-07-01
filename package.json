@@ -1,13 +1,36 @@
 {
   "name": "v1-lp-zapper",
   "version": "1.0.0",
+  "description": "Periphery contracts for the GammaSwap V1 protocol",
+  "homepage": "https://gammaswap.com",
+  "scripts": {
+    "test": "hardhat test"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gammaswap/v1-lp-zapper"
+  },
   "main": "index.js",
-  "repository": "git@github.com:gammaswap/v1-lp-zapper.git",
+  "files": [
+    "artifacts",
+    "contracts",
+    "typechain",
+    "typechain-types"
+  ],
+  "keywords": [
+    "gammaswap",
+    "ethereum",
+    "lp-zapper"
+  ],
   "author": "Daniel Alcarraz <dalcarraz@gammaswap.com>",
   "license": "GPL-2.0-or-later",
   "devDependencies": {
     "@nomicfoundation/hardhat-chai-matchers": "^2.0.0",
     "@nomicfoundation/hardhat-ethers": "^3.0.0",
+    "@nomicfoundation/hardhat-foundry": "^1.1.2",
     "@nomicfoundation/hardhat-ignition": "^0.15.0",
     "@nomicfoundation/hardhat-ignition-ethers": "^0.15.0",
     "@nomicfoundation/hardhat-network-helpers": "^1.0.0",
