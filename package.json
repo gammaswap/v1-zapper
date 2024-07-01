@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "main": "index.js",
   "repository": "git@github.com:gammaswap/v1-lp-zapper.git",
-  "author": "Daniel Alcarraz <dam417@nyu.edu>",
-  "license": "MIT",
+  "author": "Daniel Alcarraz <dalcarraz@gammaswap.com>",
+  "license": "GPL-2.0-or-later",
   "devDependencies": {
     "@nomicfoundation/hardhat-chai-matchers": "^2.0.0",
     "@nomicfoundation/hardhat-ethers": "^3.0.0",
