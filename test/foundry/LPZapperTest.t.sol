@@ -18,7 +18,8 @@ contract LPZapperTest is CPMMGammaSwapSetup {
         super.initCPMMGammaSwap(true);
         user = vm.addr(3);
 
-        lpZapper = new LPZapper(address(factory), address(posMgr), address(mathLib), address(uniRouter), address(0), address(uniRouter), address(0));
+        // TODO: Make test WETH for testing zapInETH and zapOutETH
+        lpZapper = new LPZapper(address(weth), address(factory), address(posMgr), address(mathLib), address(uniRouter), address(0), address(uniRouter), address(0));
         deal(address(weth), user, 1000_000*1e18);
         deal(address(usdc), user, 1000_000*1e18);
 
@@ -150,7 +151,7 @@ contract LPZapperTest is CPMMGammaSwapSetup {
         console.log(balUSDC6);
         console.log(gslpBalance);
 
-        lpZapper.zapOut(params, lpSwap0, lpSwap1);
+        lpZapper.zapOutToken(params, lpSwap0, lpSwap1);
 
         assertEq(gslpBalance - withdrawAmt, pool.balanceOf(user));
 
@@ -252,7 +253,7 @@ contract LPZapperTest is CPMMGammaSwapSetup {
         uint256 totalSupply = pool.totalSupply();
         uint256 prevGSLPBalance = pool.balanceOf(user);
 
-        lpZapper.zapIn(tokenIn, fundAmount, params, lpSwap, fundSwap);
+        lpZapper.zapInToken(tokenIn, fundAmount, params, lpSwap, fundSwap);
 
         assertGt(pool.totalSupply(), totalSupply);
         assertGt(pool.balanceOf(user), prevGSLPBalance);
