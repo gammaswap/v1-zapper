@@ -8,7 +8,16 @@ import "hardhat-contract-sizer"; // "npx hardhat size-contracts" or "yarn run ha
 dotenv.config();
 
 const config: HardhatUserConfig = {
-  solidity: "0.8.21",
+  solidity: {
+    version: "0.8.21",
+    settings: {
+      optimizer: {
+        enabled: true,
+        runs: 200,
+      },
+      evmVersion: "paris",
+    },
+  },
 };
 
 export default config;
