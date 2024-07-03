@@ -188,8 +188,6 @@ contract LPZapperTest is CPMMGammaSwapSetup {
     }
 
     function testZapIn(uint16 fundAmt, uint8 useToken) public {
-    //function testZapIn() public {
-        //(uint16 fundAmt, uint8 useToken) = (52779, 5);
         fundAmt = fundAmt < 100 ? 100 : fundAmt;
 
         uint256[] memory amountsMin = new uint256[](2);
