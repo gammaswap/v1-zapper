@@ -135,6 +135,7 @@ node_modules
 # Hardhat files
 /cache
 /artifacts
+/cache_forge
 
 # TypeChain files
 /typechain
