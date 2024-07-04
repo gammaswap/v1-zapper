@@ -19,7 +19,7 @@ contract LPZapperTest is CPMMGammaSwapSetup {
         user = vm.addr(3);
 
         // TODO: Make test WETH for testing zapInETH and zapOutETH
-        lpZapper = new LPZapper(address(weth), address(factory), address(posMgr), address(mathLib), address(uniRouter), address(0), address(uniRouter), address(0));
+        lpZapper = new LPZapper(address(weth), address(factory), address(cfmmFactory), address(posMgr), address(mathLib), address(uniRouter), address(0), address(uniRouter), address(0));
         deal(address(weth), user, 1000_000*1e18);
         deal(address(usdc), user, 1000_000*1e18);
 

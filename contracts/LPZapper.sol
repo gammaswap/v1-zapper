@@ -8,8 +8,8 @@ contract LPZapper is ILPZapper, BaseZapper {
 
     address public immutable positionManager;
 
-    constructor(address _WETH, address _factory, address _positionManager, address _mathLib, address _uniV2Router, address _sushiRouter, address _dsRouter, address _uniV3Router)
-        BaseZapper(_WETH, _factory, _mathLib, _uniV2Router, _sushiRouter, _dsRouter, _uniV3Router) {
+    constructor(address _WETH, address _factory, address _dsFactory, address _positionManager, address _mathLib, address _uniV2Router, address _sushiRouter, address _dsRouter, address _uniV3Router)
+        BaseZapper(_WETH, _factory, _dsFactory, _mathLib, _uniV2Router, _sushiRouter, _dsRouter, _uniV3Router) {
         positionManager = _positionManager;
     }
 
@@ -59,7 +59,7 @@ contract LPZapper is ILPZapper, BaseZapper {
                 lpSwap.path[1] = tokenOut;
                 lpSwap.protocolId = params.protocolId;
                 ICPMM(params.cfmm).sync();
-                lpSwap.amount = calcSellAmount(params.cfmm, token0, token1, tokenIn, fundAmount);
+                lpSwap.amount = calcSellAmount(params.cfmm, params.protocolId, token0, token1, tokenIn, fundAmount);
             }
 
             require(lpSwap.amount > 0, "LP_ZAPPER: INVALID_SELL_AMOUNT");

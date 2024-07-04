@@ -6,6 +6,7 @@ import "@gammaswap/v1-core/contracts/libraries/GammaSwapLibrary.sol";
 import "@gammaswap/v1-implementations/contracts/interfaces/math/ICPMMMath.sol";
 import "@gammaswap/v1-implementations/contracts/interfaces/external/cpmm/ICPMM.sol";
 import "@gammaswap/v1-periphery/contracts/base/Transfers.sol";
+import "@gammaswap/v1-deltaswap/contracts/interfaces/IDeltaSwapFactory.sol";
 import "@gammaswap/v1-deltaswap/contracts/interfaces/IDeltaSwapRouter02.sol";
 import "@gammaswap/univ3-rebalancer/contracts/interfaces/ISwapRouter.sol";
 import "@gammaswap/univ3-rebalancer/contracts/libraries/Path.sol";
@@ -17,14 +18,16 @@ abstract contract BaseZapper is Transfers {
     using BytesLib for bytes;
 
     address public immutable factory;
+    address public immutable dsFactory;
     address public immutable mathLib;
     address public immutable uniV2Router;
     address public immutable sushiRouter;
     address public immutable dsRouter;
     address public immutable uniV3Router;
 
-    constructor(address _WETH, address _factory, address _mathLib, address _uniV2Router, address _sushiRouter, address _dsRouter, address _uniV3Router) Transfers(_WETH){
+    constructor(address _WETH, address _factory, address _dsFactory, address _mathLib, address _uniV2Router, address _sushiRouter, address _dsRouter, address _uniV3Router) Transfers(_WETH){
         factory = _factory;
+        dsFactory = _dsFactory;
         mathLib = _mathLib;
         uniV2Router = _uniV2Router;
         sushiRouter = _sushiRouter;
@@ -76,11 +79,11 @@ abstract contract BaseZapper is Transfers {
     }
 
     // always buying token0
-    function _calcSoldToken(uint256 delta, uint256 reserve0, uint256 reserve1) internal virtual view returns(uint256) {
-        return reserve1 * delta * 1000 / ((reserve0 - delta) * 997) + 1;
+    function _calcSoldToken(uint256 fee1, uint256 fee2, uint256 delta, uint256 reserve0, uint256 reserve1) internal virtual view returns(uint256) {
+        return reserve1 * delta * fee2 / ((reserve0 - delta) * fee1) + 1;
     }
 
-    function _calcDeltasForMaxLP(uint128[] memory tokensHeld, uint128[] memory reserves, uint8 decimals0, uint8 decimals1) internal virtual view returns(int256[] memory deltas) {
+    function _calcDeltasForMaxLP(uint256 fee1, uint256 fee2, uint128[] memory tokensHeld, uint128[] memory reserves, uint8 decimals0, uint8 decimals1) internal virtual view returns(int256[] memory deltas) {
         // we only buy, therefore when desiredRatio > loanRatio, invert reserves, collaterals, and desiredRatio
         deltas = new int256[](2);
 
@@ -88,20 +91,12 @@ abstract contract BaseZapper is Transfers {
         uint256 rightVal = uint256(reserves[1]) * uint256(tokensHeld[0]);
 
         if(leftVal > rightVal) {
-            deltas = _calcDeltasForMaxLPStaticCall(tokensHeld[0], tokensHeld[1], reserves[0], reserves[1], decimals0);
+            deltas = ICPMMMath(mathLib).calcDeltasForMaxLP(tokensHeld[0], tokensHeld[1], reserves[0], reserves[1], fee1, fee2, decimals0);
             (deltas[0], deltas[1]) = (deltas[1], 0); // swap result, 1st root (index 0) is the only feasible trade
         } else if(leftVal < rightVal) {
-            deltas = _calcDeltasForMaxLPStaticCall(tokensHeld[1], tokensHeld[0], reserves[1], reserves[0], decimals1);
+            deltas = ICPMMMath(mathLib).calcDeltasForMaxLP(tokensHeld[1], tokensHeld[0], reserves[1], reserves[0], fee1, fee2, decimals1);
             (deltas[0], deltas[1]) = (0, deltas[1]); // swap result, 1st root (index 0) is the only feasible trade
         }
-    }
-
-    function _calcDeltasForMaxLPStaticCall(uint128 tokensHeld0, uint128 tokensHeld1, uint128 reserve0, uint128 reserve1,
-        uint8 decimals0) internal virtual view returns(int256[] memory deltas) {
-
-        // TODO: call got get correct fee for IDeltaSwapPair from DeltaSwapFactory
-        // always buys
-        deltas = ICPMMMath(mathLib).calcDeltasForMaxLP(tokensHeld0, tokensHeld1, reserve0, reserve1, 997, 1000, decimals0);
     }
 
     function getTokenOut(bytes memory path) internal view returns(address tokenOut) {
@@ -128,20 +123,25 @@ abstract contract BaseZapper is Transfers {
         balanceOut = GammaSwapLibrary.balanceOf(tokenOut, address(this));
     }
 
-    function calcSellAmount(address cfmm, address token0, address token1, address tokenIn, uint256 fundAmount) internal view returns(uint256 sellAmount) {
+    function calcSellAmount(address cfmm, uint16 protocolId, address token0, address token1, address tokenIn, uint256 fundAmount) internal view returns(uint256 sellAmount) {
+        uint256 fee1 = 997;
+        uint256 fee2 = 1000;
+        if(protocolId == 3) {
+            fee1 = 1000 - IDeltaSwapFactory(dsFactory).dsFee();
+        }
         uint128[] memory reserves = new uint128[](2);
         (reserves[0], reserves[1],) = ICPMM(cfmm).getReserves();
         uint128[] memory tokensHeld = new uint128[](2);
         if(tokenIn == token0) {
             tokensHeld[0] = uint128(fundAmount);
             tokensHeld[1] = 1;
-            int256[] memory deltas = _calcDeltasForMaxLP(tokensHeld, reserves, GammaSwapLibrary.decimals(token0), GammaSwapLibrary.decimals(token1));
-            sellAmount = _calcSoldToken(uint256(deltas[1]), reserves[1], reserves[0]);
+            int256[] memory deltas = _calcDeltasForMaxLP(fee1, fee2, tokensHeld, reserves, GammaSwapLibrary.decimals(token0), GammaSwapLibrary.decimals(token1));
+            sellAmount = _calcSoldToken(fee1, fee2, uint256(deltas[1]), reserves[1], reserves[0]);
         } else {
             tokensHeld[0] = 1;
             tokensHeld[1] = uint128(fundAmount);
-            int256[] memory deltas = _calcDeltasForMaxLP(tokensHeld, reserves, GammaSwapLibrary.decimals(token0), GammaSwapLibrary.decimals(token1));
-            sellAmount = _calcSoldToken(uint256(deltas[0]), reserves[0], reserves[1]);
+            int256[] memory deltas = _calcDeltasForMaxLP(fee1, fee2, tokensHeld, reserves, GammaSwapLibrary.decimals(token0), GammaSwapLibrary.decimals(token1));
+            sellAmount = _calcSoldToken(fee1, fee2, uint256(deltas[0]), reserves[0], reserves[1]);
         }
     }
 }
