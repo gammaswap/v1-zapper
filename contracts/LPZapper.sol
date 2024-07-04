@@ -83,15 +83,15 @@ contract LPZapper is ILPZapper, BaseZapper {
         if(fundAmount > 0) GammaSwapLibrary.safeTransfer(token1, params.to, fundAmount);
     }
 
-    function zapOutETH(IPositionManager.WithdrawReservesParams memory params, LPSwapParams memory lpSwap0, LPSwapParams memory lpSwap1) external override virtual payable {
+    function zapOutETH(IPositionManager.WithdrawReservesParams memory params, LPSwapParams memory lpSwap0, LPSwapParams memory lpSwap1) external override virtual {
         require(params.to != address(0), "LP_ZAPPER: INVALID_PARAM_TO");
 
         if(ICPMM(params.cfmm).token0() == WETH) {
             require((lpSwap1.path.length > 0 && lpSwap1.path[lpSwap1.path.length - 1] == WETH) || (lpSwap1.uniV3Path.length > 0 && getTokenOut(lpSwap1.uniV3Path) == WETH),"LP_ZAPPER: PATH1_EXIT_NOT_WETH");
         } else if(ICPMM(params.cfmm).token1() == WETH) {
-            require((lpSwap0.path.length > 0 && lpSwap0.path[lpSwap1.path.length - 1] == WETH) || (lpSwap0.uniV3Path.length > 0 && getTokenOut(lpSwap0.uniV3Path) == WETH),"LP_ZAPPER: PATH0_EXIT_NOT_WETH");
+            require((lpSwap0.path.length > 0 && lpSwap0.path[lpSwap0.path.length - 1] == WETH) || (lpSwap0.uniV3Path.length > 0 && getTokenOut(lpSwap0.uniV3Path) == WETH),"LP_ZAPPER: PATH0_EXIT_NOT_WETH");
         } else {
-            require((lpSwap0.path.length > 0 && lpSwap0.path[lpSwap1.path.length - 1] == WETH) || (lpSwap0.uniV3Path.length > 0 && getTokenOut(lpSwap0.uniV3Path) == WETH),"LP_ZAPPER: PATH0_EXIT_NOT_WETH");
+            require((lpSwap0.path.length > 0 && lpSwap0.path[lpSwap0.path.length - 1] == WETH) || (lpSwap0.uniV3Path.length > 0 && getTokenOut(lpSwap0.uniV3Path) == WETH),"LP_ZAPPER: PATH0_EXIT_NOT_WETH");
             require((lpSwap1.path.length > 0 && lpSwap1.path[lpSwap1.path.length - 1] == WETH) || (lpSwap1.uniV3Path.length > 0 && getTokenOut(lpSwap1.uniV3Path) == WETH),"LP_ZAPPER: PATH1_EXIT_NOT_WETH");
         }
 
@@ -100,11 +100,7 @@ contract LPZapper is ILPZapper, BaseZapper {
 
         zapOutToken(params, lpSwap0, lpSwap1);
 
-        uint256 wethBal = IERC20(WETH).balanceOf(address(this));
-
-        IWETH(WETH).withdraw(wethBal);
-
-        GammaSwapLibrary.safeTransferETH(to, wethBal);
+        unwrapWETH(0, to);
     }
 
     function zapOutToken(IPositionManager.WithdrawReservesParams memory params, LPSwapParams memory lpSwap0, LPSwapParams memory lpSwap1) public override virtual {

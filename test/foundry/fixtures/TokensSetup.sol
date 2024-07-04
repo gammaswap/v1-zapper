@@ -3,10 +3,11 @@ pragma solidity ^0.8.0;
 
 import "forge-std/Test.sol";
 
-import "@gammaswap/v1-liquidator/contracts/test/TestERC20.sol";
+import "../../../contracts/test/TestWETH.sol";
 
 contract TokensSetup is Test {
 
+    TestWETH public weth9;
     TestERC20 public weth;
     TestERC20 public usdc;
     TestERC20 public usdt;
@@ -19,6 +20,7 @@ contract TokensSetup is Test {
     address public addr2;
 
     function initTokens(uint256 amount, bool use6decimals) public {
+        weth9 = new TestWETH("Wrapped Ether", "WETH9");
         usdc = new TestERC20("USDC", "USDC");
         weth = new TestERC20("Wrapped Ethereum", "WETH");
         usdt = new TestERC20("Tether", "USDT");
@@ -64,6 +66,7 @@ contract TokensSetup is Test {
         weth6.mint(address(this), 100000*1e6);
         usdc6.mint(address(this), 100000*1e6);
         weth8.mint(address(this), 100000*1e8);
+        weth9.mint(address(this), 100000*1e18);
 
         addr1 = vm.addr(5);
         usdc.mint(addr1, amount*1e18);
@@ -72,6 +75,7 @@ contract TokensSetup is Test {
         weth6.mint(addr1, amount*1e6);
         usdc6.mint(addr1, amount*1e6);
         weth8.mint(addr1, amount*1e8);
+        weth9.mint(addr1, amount*1e18);
 
         addr2 = vm.addr(6);
         usdc.mint(addr2, amount*1e18);
@@ -80,6 +84,7 @@ contract TokensSetup is Test {
         weth6.mint(addr2, amount*1e6);
         usdc6.mint(addr2, amount*1e6);
         weth8.mint(addr2, amount*1e8);
+        weth9.mint(addr2, amount*1e18);
     }
 
     function sort(address[] memory arr, int left, int right) internal pure {

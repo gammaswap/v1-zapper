@@ -63,16 +63,22 @@ abstract contract BaseZapper is Transfers {
 
     function _swap(address tokenIn, uint256 amountIn, uint256 amountOutMin, address[] memory path, uint256 protocolId, address to) internal {
         require(tokenIn == path[0], "LP_ZAPPER: INVALID_PATH");
+        require(protocolId > 0, "LP_ZAPPER: INVALID_PROTOCOL");
 
-        address router = dsRouter;
+        address router;
         if(protocolId == 1) {
             require(uniV2Router != address(0), "LP_ZAPPER: UNIV2_ROUTER_NOT_FOUND");
             router = uniV2Router;
         } else if(protocolId == 2) {
             require(sushiRouter != address(0), "LP_ZAPPER: SUSHI_ROUTER_NOT_FOUND");
             router == sushiRouter;
+        } else if(protocolId == 3) {
+            require(dsRouter != address(0), "LP_ZAPPER: SUSHI_ROUTER_NOT_FOUND");
+            router == dsRouter;
         }
 
+        require(router != address(0), "LP_ZAPPER: PROTOCOL_NOT_FOUND");
+        
         GammaSwapLibrary.safeApprove(tokenIn, router, amountIn);
 
         IDeltaSwapRouter02(router).swapExactTokensForTokens(amountIn, amountOutMin, path, to, block.timestamp); // the last amounts is what was obtained

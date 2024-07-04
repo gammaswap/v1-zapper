@@ -49,6 +49,7 @@ contract CPMMGammaSwapSetup is UniswapSetup, TokensSetup {
     CPMMExternalRebalanceStrategy public externalRebalanceStrategy;
     CPMMGammaPool public protocol;
     CPMMGammaPool public protocol2;
+    CPMMGammaPool public poolW9;
     CPMMGammaPool public pool;
     CPMMGammaPool public pool2;
     CPMMGammaPool public pool6x18;
@@ -62,6 +63,7 @@ contract CPMMGammaSwapSetup is UniswapSetup, TokensSetup {
 
     CPMMMath public mathLib;
 
+    address public cfmmW9;
     address public cfmm;
     address public cfmm6x18;
     address public cfmm18x6;
@@ -199,6 +201,20 @@ contract CPMMGammaSwapSetup is UniswapSetup, TokensSetup {
 
         setPoolParams(address(pool), 0, 0, 10, 100, 100, 1, 250, 200, 1e3);// setting origination fees to zero
 
+        tokens[0] = address(weth9);
+        tokens[1] = address(usdc);
+
+        cfmmW9 = createPair(tokens[0], tokens[1]);
+
+        poolW9 = CPMMGammaPool(factory.createPool(PROTOCOL_ID, cfmmW9, tokens, new bytes(0)));
+        if(IS_DELTASWAP) {
+            assertEq(IDeltaSwapPair(cfmmW9).gammaPool(), address(poolW9));
+        }
+
+        setPoolParams(address(poolW9), 0, 0, 10, 100, 100, 1, 250, 200, 1e3);// setting origination fees to zero
+
+        approvePoolAndCFMM(poolW9, cfmmW9);
+
         approvePool();
         approvePosMgr();
     }
@@ -218,6 +234,7 @@ contract CPMMGammaSwapSetup is UniswapSetup, TokensSetup {
 
     function approvePosMgr() public {
         vm.startPrank(addr1);
+        weth9.approve(address(posMgr), type(uint256).max);
         usdc.approve(address(posMgr), type(uint256).max);
         weth.approve(address(posMgr), type(uint256).max);
         weth6.approve(address(posMgr), type(uint256).max);
@@ -227,6 +244,7 @@ contract CPMMGammaSwapSetup is UniswapSetup, TokensSetup {
         vm.stopPrank();
 
         vm.startPrank(addr2);
+        weth9.approve(address(posMgr), type(uint256).max);
         usdc.approve(address(posMgr), type(uint256).max);
         weth.approve(address(posMgr), type(uint256).max);
         weth6.approve(address(posMgr), type(uint256).max);
@@ -238,6 +256,7 @@ contract CPMMGammaSwapSetup is UniswapSetup, TokensSetup {
 
     function approveRouter() public {
         vm.startPrank(addr1);
+        weth9.approve(address(uniRouter), type(uint256).max);
         usdc.approve(address(uniRouter), type(uint256).max);
         weth.approve(address(uniRouter), type(uint256).max);
         usdc6.approve(address(uniRouter), type(uint256).max);
@@ -247,6 +266,7 @@ contract CPMMGammaSwapSetup is UniswapSetup, TokensSetup {
         vm.stopPrank();
 
         vm.startPrank(addr2);
+        weth9.approve(address(uniRouter), type(uint256).max);
         usdc.approve(address(uniRouter), type(uint256).max);
         weth.approve(address(uniRouter), type(uint256).max);
         usdc6.approve(address(uniRouter), type(uint256).max);
