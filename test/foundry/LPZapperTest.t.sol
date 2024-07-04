@@ -80,10 +80,13 @@ contract LPZapperTest is CPMMGammaSwapSetup {
         });
 
         uint256 fundAmount = uint256(fundAmt) * 1e14;
-        uint256 expFundAmount = fundAmount;/**/
+        uint256 expFundAmount = fundAmount;
 
         uint256 totalSupply = poolW9.totalSupply();
         uint256 prevGSLPBalance = poolW9.balanceOf(user);
+
+        vm.expectRevert("LP_ZAPPER: ZERO_ETH");
+        lpZapper.zapInETH(params, lpSwap, fundSwap);
 
         lpZapper.zapInETH{value: fundAmount}(params, lpSwap, fundSwap);
 
@@ -133,7 +136,7 @@ contract LPZapperTest is CPMMGammaSwapSetup {
         fundSwap.path[1] = address(usdc);
 
         uint256 fundAmount = uint256(fundAmt) * 1e14;
-        uint256 expFundAmount = fundAmount;/**/
+        uint256 expFundAmount = fundAmount;
 
         uint256 totalSupply = pool.totalSupply();
         uint256 prevGSLPBalance = pool.balanceOf(user);
@@ -351,9 +354,9 @@ contract LPZapperTest is CPMMGammaSwapSetup {
 
         IPositionManager.WithdrawReservesParams memory params = IPositionManager.WithdrawReservesParams({
             protocolId: 1,
-            cfmm: address(cfmm),
+            cfmm: address(0),
             amount: withdrawAmt,
-            to: user,
+            to: address(0),
             deadline: block.timestamp,
             amountsMin: new uint256[](2)
         });
@@ -425,6 +428,16 @@ contract LPZapperTest is CPMMGammaSwapSetup {
         uint256 balWETH6 = IERC20(weth6).balanceOf(user);
         uint256 balUSDC6 = IERC20(usdc6).balanceOf(user);
 
+        vm.expectRevert("LP_ZAPPER: INVALID_PARAM_TO");
+        lpZapper.zapOutToken(params, lpSwap0, lpSwap1);
+
+        params.to = user;
+
+        vm.expectRevert("LP_ZAPPER: INVALID_PARAM_CFMM");
+        lpZapper.zapOutToken(params, lpSwap0, lpSwap1);
+
+        params.cfmm = address(cfmm);
+
         lpZapper.zapOutToken(params, lpSwap0, lpSwap1);
 
         assertEq(gslpBalance - withdrawAmt, pool.balanceOf(user));
@@ -468,8 +481,8 @@ contract LPZapperTest is CPMMGammaSwapSetup {
         uint256[] memory amountsMin = new uint256[](2);
         IPositionManager.DepositReservesParams memory params = IPositionManager.DepositReservesParams({
             protocolId: 1,
-            cfmm: address(cfmm),
-            to: user,
+            cfmm: address(0),
+            to: address(0),
             deadline: block.timestamp,
             amountsDesired: new uint256[](0),
             amountsMin: amountsMin
@@ -527,6 +540,22 @@ contract LPZapperTest is CPMMGammaSwapSetup {
         uint256 totalSupply = pool.totalSupply();
         uint256 prevGSLPBalance = pool.balanceOf(user);
 
+        vm.expectRevert("LP_ZAPPER: INVALID_FUND_AMOUNT");
+        lpZapper.zapInToken(tokenIn, 1000, params, lpSwap, fundSwap);
+
+        vm.expectRevert("LP_ZAPPER: ZERO_ADDRESS");
+        lpZapper.zapInToken(address(0), fundAmount, params, lpSwap, fundSwap);
+
+        vm.expectRevert("LP_ZAPPER: INVALID_PARAM_TO");
+        lpZapper.zapInToken(tokenIn, fundAmount, params, lpSwap, fundSwap);
+
+        params.to = user;
+
+        vm.expectRevert("LP_ZAPPER: INVALID_PARAM_CFMM");
+        lpZapper.zapInToken(tokenIn, fundAmount, params, lpSwap, fundSwap);
+
+        params.cfmm = address(cfmm);
+
         lpZapper.zapInToken(tokenIn, fundAmount, params, lpSwap, fundSwap);
 
         assertGt(pool.totalSupply(), totalSupply);
@@ -539,5 +568,58 @@ contract LPZapperTest is CPMMGammaSwapSetup {
 
         assertApproxEqRel(expFundAmount / 2, userLPBalance * reserve0 / totalSupply, 15e16);
         assertApproxEqRel(expFundAmount / 2, userLPBalance * reserve1 / totalSupply, 15e16);
+    }
+
+    function testZapInErrors() public {
+        uint256[] memory amountsMin = new uint256[](2);
+        IPositionManager.DepositReservesParams memory params = IPositionManager.DepositReservesParams({
+            protocolId: 1,
+            cfmm: address(cfmmW9),
+            to: user,
+            deadline: block.timestamp,
+            amountsDesired: new uint256[](0),
+            amountsMin: amountsMin
+        });
+
+        ILPZapper.LPSwapParams memory lpSwap = ILPZapper.LPSwapParams({
+            amount: 0,
+            protocolId: 0,
+            path: new address[](0),
+            uniV3Path: new bytes(0)
+        });
+
+        ILPZapper.FundSwapParams memory fundSwap = ILPZapper.FundSwapParams({
+            protocolId: 1,
+            path: new address[](0),
+            uniV3Path: new bytes(0)
+        });
+
+        address tokenIn = address(weth);
+        uint256 fundAmount = 1 * 1e18;
+
+        vm.expectRevert("LP_ZAPPER: INVALID_FUND_AMOUNT");
+        lpZapper.zapIn(tokenIn, 1000, params, lpSwap, fundSwap);
+
+        vm.expectRevert("LP_ZAPPER: NO_FUND_SWAP_PATH");
+        lpZapper.zapIn(tokenIn, fundAmount, params, lpSwap, fundSwap);
+
+        GammaSwapLibrary.safeTransfer(tokenIn, address(lpZapper), fundAmount);
+
+        fundSwap.path = new address[](2);
+        fundSwap.path[0] = address(weth);
+        fundSwap.path[1] = address(usdc6);
+
+        vm.expectRevert("LP_ZAPPER: INVALID_TOKEN_OUT");
+        lpZapper.zapIn(tokenIn, fundAmount, params, lpSwap, fundSwap);
+
+        params.cfmm = address(cfmm);
+        fundSwap.path = new address[](0);
+        lpSwap.amount = 1001;
+        lpSwap.path = new address[](2);
+        lpSwap.path[0] = address(weth);
+        lpSwap.path[1] = address(usdc6);
+
+        vm.expectRevert("LP_ZAPPER: INVALID_TOKEN_OUT");
+        lpZapper.zapIn(tokenIn, fundAmount, params, lpSwap, fundSwap);
     }
 }

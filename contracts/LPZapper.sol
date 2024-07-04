@@ -39,16 +39,11 @@ contract LPZapper is ILPZapper, BaseZapper {
         zapIn(tokenIn, fundAmount, params, lpSwap, fundSwap);
     }
 
-    /// @dev Zap in fundAmount of tokenIn into GammaPool by first converting tokenIn into token0 or token1 (if not already either of those tokens) of GammaPool
     /// @dev If tokenIn is not token0 or token1 of GammaPool, convert entire fundAmount into token0 or token1 using instructions in fundSwap, ignoring slippage
     /// @dev Sells part of tokenIn into either token0 or token1 to match the same ratio of token0 to token1 in CFMM to deposit into GammaPool
     /// @dev Swaps do not control for slippage. Slippage is controlled through DepositReservesParams.amountsMin. Therefore, user must calculate minimum expected amounts to deposit
     /// @dev If uniV3Path is not set in lpSwap then use lpSwap.path parameter. If lpSwap.amount is not set or lpSwap.path is not set, use CFMM's own token path and calculate necessary quantities to deposit all tokens
-    /// @param tokenIn - token zapped in
-    /// @param fundAmount - amount of tokenIn to zap in
-    /// @param params - instructions to deposit token0 and token1 into GammaPool. Parameter amountsMin in struct controls for slippage after any swap
-    /// @param lpSwap - instructions to rebalance zapped in token to match token0 and token1 ratio of CFMM of GammaPool
-    /// @param fundSwap - instructions to swap fundAmount of tokenIn into either token0 or token1 of GammaPool
+    /// @dev See {ILPZapper-zapIn}.
     function zapIn(address tokenIn, uint256 fundAmount, IPositionManager.DepositReservesParams memory params, LPSwapParams memory lpSwap, FundSwapParams memory fundSwap) public virtual {
         require(params.to != address(0), "LP_ZAPPER: INVALID_PARAM_TO");
         require(params.cfmm != address(0), "LP_ZAPPER: INVALID_PARAM_CFMM");

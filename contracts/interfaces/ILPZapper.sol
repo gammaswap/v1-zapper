@@ -54,4 +54,12 @@ interface ILPZapper {
     /// @param lpSwap0 - instructions to swap token0 withdrawn from the GammaPool into any token
     /// @param lpSwap1 - instructions to swap token1 withdrawn from the GammaPool into any token
     function zapOutToken(IPositionManager.WithdrawReservesParams memory params, LPSwapParams memory lpSwap0, LPSwapParams memory lpSwap1) external;
+
+    /// @dev Zap in fundAmount of any tokenIn into GammaPool as token0 and token1 of GammaPool
+    /// @param tokenIn - token zapped in
+    /// @param fundAmount - amount of tokenIn to zap in
+    /// @param params - instructions to deposit token0 and token1 into GammaPool. Parameter amountsMin in struct controls for slippage after any swap
+    /// @param lpSwap - instructions to rebalance zapped in token to match token0 and token1 ratio of CFMM of GammaPool
+    /// @param fundSwap - instructions to swap fundAmount of tokenIn into either token0 or token1 of GammaPool
+    function zapIn(address tokenIn, uint256 fundAmount, IPositionManager.DepositReservesParams memory params, LPSwapParams memory lpSwap, FundSwapParams memory fundSwap) external;
 }
