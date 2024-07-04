@@ -438,6 +438,16 @@ contract LPZapperTest is CPMMGammaSwapSetup {
 
         params.cfmm = address(cfmm);
 
+        if(swapPath > 0 && swapPath < 8) {
+            lpSwap0.amount = type(uint256).max;
+            lpSwap1.amount = type(uint256).max;
+
+            vm.expectRevert("DeltaSwapRouter: INSUFFICIENT_OUTPUT_AMOUNT");
+            lpZapper.zapOutToken(params, lpSwap0, lpSwap1);
+        }
+
+        lpSwap0.amount = 0;
+        lpSwap1.amount = 0;
         lpZapper.zapOutToken(params, lpSwap0, lpSwap1);
 
         assertEq(gslpBalance - withdrawAmt, pool.balanceOf(user));
