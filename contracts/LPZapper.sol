@@ -1,13 +1,17 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity ^0.8.0;
 
+import "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
+import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts/access/Ownable2Step.sol";
+
 import "./interfaces/ILPZapper.sol";
 import "./BaseZapper.sol";
 
 /// @title LPZapper Smart Contract
 /// @author Daniel D. Alcarraz (https://github.com/0xDanr)
 /// @dev Zaps in/out single token or ETH into GammaPool
-contract LPZapper is ILPZapper, BaseZapper {
+contract LPZapper is Initializable, UUPSUpgradeable, Ownable2Step, ILPZapper, BaseZapper {
 
     /// @dev address of PositionManager used with GammaPool
     address public immutable positionManager;
@@ -16,6 +20,12 @@ contract LPZapper is ILPZapper, BaseZapper {
     constructor(address _WETH, address _factory, address _dsFactory, address _positionManager, address _mathLib, address _uniV2Router, address _sushiRouter, address _dsRouter, address _uniV3Router)
         BaseZapper(_WETH, _factory, _dsFactory, _mathLib, _uniV2Router, _sushiRouter, _dsRouter, _uniV3Router) {
         positionManager = _positionManager;
+    }
+
+    /// @dev Initialize LPZapper when used as a proxy contract
+    function initialize() public virtual initializer {
+        require(owner() == address(0));
+        _transferOwnership(msg.sender);
     }
 
     /// @dev See {ILPZapper-zapInETH}.
@@ -156,4 +166,6 @@ contract LPZapper is ILPZapper, BaseZapper {
             GammaSwapLibrary.safeTransfer(lpTokens[1], to, reserves[1]);
         }
     }
+
+    function _authorizeUpgrade(address) internal override onlyOwner {}
 }
