@@ -52,6 +52,9 @@ contract LPZapperTest is CPMMGammaSwapSetup {
     function testLPZapperOwner() public {
         address payable addr = payable(address(lpZapper));
         assertEq(LPZapper(addr).owner(), address(this));
+
+        vm.expectRevert("LP_ZAPPER: INITIALIZED");
+        LPZapper(addr).initialize();
     }
 
     function testZapInETH(uint16 fundAmt) public {

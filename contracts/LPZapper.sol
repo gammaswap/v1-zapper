@@ -24,7 +24,7 @@ contract LPZapper is Initializable, UUPSUpgradeable, Ownable2Step, ILPZapper, Ba
 
     /// @dev Initialize LPZapper when used as a proxy contract
     function initialize() public virtual initializer {
-        require(owner() == address(0));
+        require(owner() == address(0), "LP_ZAPPER: INITIALIZED");
         _transferOwnership(msg.sender);
     }
 
