@@ -49,6 +49,11 @@ contract LPZapperTest is CPMMGammaSwapSetup {
         depositLiquidityInPoolFromCFMM(pool6x18, cfmm6x18, addr2);
     }
 
+    function testLPZapperOwner() public {
+        address payable addr = payable(address(lpZapper));
+        assertEq(LPZapper(addr).owner(), address(this));
+    }
+
     function testZapInETH(uint16 fundAmt) public {
         fundAmt = fundAmt < 100 ? 100 : fundAmt;
 
