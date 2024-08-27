@@ -100,10 +100,10 @@ abstract contract BaseZapper is Transfers {
             router = uniV2Router;
         } else if(protocolId == 2) {
             require(sushiRouter != address(0), "LP_ZAPPER: SUSHI_ROUTER_NOT_FOUND");
-            router == sushiRouter;
+            router = sushiRouter;
         } else if(protocolId == 3) {
-            require(dsRouter != address(0), "LP_ZAPPER: SUSHI_ROUTER_NOT_FOUND");
-            router == dsRouter;
+            require(dsRouter != address(0), "LP_ZAPPER: DS_ROUTER_NOT_FOUND");
+            router = dsRouter;
         }
 
         require(router != address(0), "LP_ZAPPER: PROTOCOL_NOT_FOUND");
