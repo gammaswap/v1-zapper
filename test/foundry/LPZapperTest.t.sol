@@ -437,12 +437,12 @@ contract LPZapperTest is CPMMGammaSwapSetup {
         uint256 balUSDC6 = IERC20(usdc6).balanceOf(user);
 
         vm.expectRevert("LP_ZAPPER: INVALID_PARAM_TO");
-        lpZapper.zapOutToken(params, lpSwap0, lpSwap1);
+        lpZapper.zapOutToken(params, lpSwap0, lpSwap1, false);
 
         params.to = user;
 
         vm.expectRevert("LP_ZAPPER: INVALID_PARAM_CFMM");
-        lpZapper.zapOutToken(params, lpSwap0, lpSwap1);
+        lpZapper.zapOutToken(params, lpSwap0, lpSwap1, false);
 
         params.cfmm = address(cfmm);
 
@@ -451,12 +451,12 @@ contract LPZapperTest is CPMMGammaSwapSetup {
             lpSwap1.amount = type(uint256).max;
 
             vm.expectRevert("DeltaSwapRouter: INSUFFICIENT_OUTPUT_AMOUNT");
-            lpZapper.zapOutToken(params, lpSwap0, lpSwap1);
+            lpZapper.zapOutToken(params, lpSwap0, lpSwap1, false);
         }
 
         lpSwap0.amount = 0;
         lpSwap1.amount = 0;
-        lpZapper.zapOutToken(params, lpSwap0, lpSwap1);
+        lpZapper.zapOutToken(params, lpSwap0, lpSwap1, false);
 
         assertEq(gslpBalance - withdrawAmt, pool.balanceOf(user));
 

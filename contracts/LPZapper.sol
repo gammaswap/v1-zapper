@@ -122,7 +122,7 @@ contract LPZapper is Initializable, UUPSUpgradeable, Ownable2Step, ILPZapper, Ba
         address to = params.to;
         params.to = address(this);
 
-        zapOutToken(params, lpSwap0, lpSwap1);
+        zapOutToken(params, lpSwap0, lpSwap1, false);
 
         unwrapWETH(0, to);
     }
@@ -130,7 +130,7 @@ contract LPZapper is Initializable, UUPSUpgradeable, Ownable2Step, ILPZapper, Ba
     /// @dev See {ILPZapper-zapOutToken}.
     /// @notice Slippage of conversion of tokens after withdrawal is handled by the amount parameter of the LPSwapParams structs lpSwap0 and lpSwap1
     /// @notice If no instructions are provided in lpSwap0 and/or lpSwap1 then the token is withdrawn as the token of the GammaPool
-    function zapOutToken(IPositionManager.WithdrawReservesParams memory params, LPSwapParams memory lpSwap0, LPSwapParams memory lpSwap1) public override virtual {
+    function zapOutToken(IPositionManager.WithdrawReservesParams memory params, LPSwapParams memory lpSwap0, LPSwapParams memory lpSwap1, bool isCFMMWithdrawal) public override virtual {
         require(params.to != address(0), "LP_ZAPPER: INVALID_PARAM_TO");
         require(params.cfmm != address(0), "LP_ZAPPER: INVALID_PARAM_CFMM");
         address to = params.to;

@@ -50,10 +50,12 @@ interface ILPZapper {
     function zapInToken(address tokenIn, uint256 fundAmount, IPositionManager.DepositReservesParams memory params, LPSwapParams memory lpSwap, FundSwapParams memory fundSwap) external;
 
     /// @dev Zap out GammaPool tokens specified in the WithdrawReservesParams as the destination token specified in the lpSwap0 and lpSwap1 parameters
+    /// @dev If withdrawing from CFMM, protocolId in `params` is used to identify CFMM router
     /// @param params - WithdrawReservesParams of struct to withdraw liquidity from the GammaPool
     /// @param lpSwap0 - instructions to swap token0 withdrawn from the GammaPool into any token
     /// @param lpSwap1 - instructions to swap token1 withdrawn from the GammaPool into any token
-    function zapOutToken(IPositionManager.WithdrawReservesParams memory params, LPSwapParams memory lpSwap0, LPSwapParams memory lpSwap1) external;
+    /// @param isCFMMWithdrawal - true if withdrawing directly from CFMM, false if withdrawing from GammaPool
+    function zapOutToken(IPositionManager.WithdrawReservesParams memory params, LPSwapParams memory lpSwap0, LPSwapParams memory lpSwap1, bool isCFMMWithdrawal) external;
 
     /// @dev Zap in fundAmount of any tokenIn into GammaPool as token0 and token1 of GammaPool
     /// @param tokenIn - token zapped in
