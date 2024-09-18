@@ -275,7 +275,7 @@ contract LPZapperTest is CPMMGammaSwapSetup {
         assertApproxEqRel(address(user).balance, 2e18 * uint256(percent) / 100, 15e15);
     }
 
-    function testZapOutETHFromTokens(uint8 percent) public {
+    function testZapOutETHFromTokens(uint8 percent, bool isCFMMWithdrawal) public {
         percent = percent < 10 ? 10 : percent;
         percent = percent > 100 ? 100 : percent;
 
@@ -293,14 +293,31 @@ contract LPZapperTest is CPMMGammaSwapSetup {
         depositParams.amountsDesired[0] = 1e18;
         depositParams.amountsDesired[1] = 1e18;
 
-        address token0 = ICPMM(cfmm).token0();
-        address token1 = ICPMM(cfmm).token1();
+        TestParams memory _params = TestParams({
+            lpToken: address(pool),
+            token0: ICPMM(cfmm).token0(),
+            token1: ICPMM(cfmm).token1(),
+            balWETH: 0,
+            balUSDC: 0,
+            balWETH6: 0,
+            balUSDC6: 0,
+            balETH: 0
+        });
 
-        IERC20(token0).approve(address(posMgr), 1e18);
-        IERC20(token1).approve(address(posMgr), 1e18);
+        if(isCFMMWithdrawal) {
+            _params.lpToken = address(cfmm);
+            IERC20(_params.token0).approve(address(uniRouter), 1e18);
+            IERC20(_params.token1).approve(address(uniRouter), 1e18);
 
-        posMgr.depositReserves(depositParams);
-        uint256 gslpBalance = pool.balanceOf(user);
+            uniRouter.addLiquidity(_params.token0, _params.token1, 1e18, 1e18, 0, 0, user, type(uint256).max);
+        } else {
+            IERC20(_params.token0).approve(address(posMgr), 1e18);
+            IERC20(_params.token1).approve(address(posMgr), 1e18);
+
+            posMgr.depositReserves(depositParams);
+        }
+
+        uint256 gslpBalance = IERC20(_params.lpToken).balanceOf(user);
 
         uint256 withdrawAmt = gslpBalance * percent / 100;
         assertGt(withdrawAmt, 0);
@@ -328,35 +345,35 @@ contract LPZapperTest is CPMMGammaSwapSetup {
             uniV3Path: new bytes(0)
         });
 
-        GammaSwapLibrary.safeApprove(address(pool), address(lpZapper), withdrawAmt);
+        GammaSwapLibrary.safeApprove(_params.lpToken, address(lpZapper), withdrawAmt);
 
         vm.expectRevert("LP_ZAPPER: PATH0_EXIT_NOT_WETH");
-        lpZapper.zapOutETH(params, lpSwap0, lpSwap1, false);
+        lpZapper.zapOutETH(params, lpSwap0, lpSwap1, isCFMMWithdrawal);
 
         lpSwap0.protocolId = 1;
         lpSwap0.path = new address[](3);
-        lpSwap0.path[0] = token0;
-        lpSwap0.path[1] = token1;
+        lpSwap0.path[0] = _params.token0;
+        lpSwap0.path[1] = _params.token1;
         lpSwap0.path[2] = address(weth9);
 
         vm.expectRevert("LP_ZAPPER: PATH1_EXIT_NOT_WETH");
-        lpZapper.zapOutETH(params, lpSwap0, lpSwap1, false);
+        lpZapper.zapOutETH(params, lpSwap0, lpSwap1, isCFMMWithdrawal);
 
         lpSwap1.protocolId = 1;
         lpSwap1.path = new address[](2);
-        lpSwap1.path[0] = token1;
+        lpSwap1.path[0] = _params.token1;
         lpSwap1.path[1] = address(weth9);
 
-        uint256 balETH = address(user).balance;
-        uint256 balToken0 = IERC20(token0).balanceOf(user);
-        uint256 balToken1 = IERC20(token1).balanceOf(user);
+        _params.balETH = address(user).balance;
+        uint256 balToken0 = IERC20(_params.token0).balanceOf(user);
+        uint256 balToken1 = IERC20(_params.token1).balanceOf(user);
 
-        lpZapper.zapOutETH(params, lpSwap0, lpSwap1, false);
+        lpZapper.zapOutETH(params, lpSwap0, lpSwap1, isCFMMWithdrawal);
 
-        assertEq(gslpBalance - withdrawAmt, pool.balanceOf(user));
-        assertEq(balToken0, IERC20(token0).balanceOf(user));
-        assertEq(balToken1, IERC20(token1).balanceOf(user));
-        assertGt(address(user).balance, balETH);
+        assertEq(gslpBalance - withdrawAmt, IERC20(_params.lpToken).balanceOf(user));
+        assertEq(balToken0, IERC20(_params.token0).balanceOf(user));
+        assertEq(balToken1, IERC20(_params.token1).balanceOf(user));
+        assertGt(address(user).balance, _params.balETH);
         assertApproxEqRel(address(user).balance, 2e18 * uint256(percent) / 100, 15e15);
     }
 
