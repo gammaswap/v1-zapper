@@ -94,6 +94,14 @@ abstract contract BaseZapper is Transfers {
         require(tokenIn == path[0] && tokenIn != path[path.length - 1], "LP_ZAPPER: INVALID_PATH");
         require(protocolId > 0, "LP_ZAPPER: INVALID_PROTOCOL");
 
+        address router = _getCFMMRouter(protocolId);
+
+        GammaSwapLibrary.safeApprove(tokenIn, router, amountIn);
+
+        IDeltaSwapRouter02(router).swapExactTokensForTokens(amountIn, amountOutMin, path, to, block.timestamp); // the last amounts is what was obtained
+    }
+
+    function _getCFMMRouter(uint256 protocolId) internal view returns(address) {
         address router;
         if(protocolId == 1) {
             require(uniV2Router != address(0), "LP_ZAPPER: UNIV2_ROUTER_NOT_FOUND");
@@ -108,9 +116,7 @@ abstract contract BaseZapper is Transfers {
 
         require(router != address(0), "LP_ZAPPER: PROTOCOL_NOT_FOUND");
 
-        GammaSwapLibrary.safeApprove(tokenIn, router, amountIn);
-
-        IDeltaSwapRouter02(router).swapExactTokensForTokens(amountIn, amountOutMin, path, to, block.timestamp); // the last amounts is what was obtained
+        return router;
     }
 
     /// @dev Calculate token amount of token1 that will be sold from purchasing token0 amount. Therefore always buying token0

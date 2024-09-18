@@ -136,16 +136,25 @@ contract LPZapper is Initializable, UUPSUpgradeable, Ownable2Step, ILPZapper, Ba
         address to = params.to;
         params.to = address(this);
 
-        address gammaPool = getGammaPoolAddress(params.cfmm, params.protocolId);
+        (address lpToken, address router) = isCFMMWithdrawal ?
+            (params.cfmm, _getCFMMRouter(params.protocolId)) :
+            (getGammaPoolAddress(params.cfmm, params.protocolId), positionManager);
 
-        GammaSwapLibrary.safeTransferFrom(gammaPool, msg.sender, address(this), params.amount);
-
-        GammaSwapLibrary.safeApprove(gammaPool, positionManager, params.amount);
-        (uint256[] memory reserves,) = IPositionManager(positionManager).withdrawReserves(params); //params must be to send to here
+        GammaSwapLibrary.safeTransferFrom(lpToken, msg.sender, address(this), params.amount);
+        GammaSwapLibrary.safeApprove(lpToken, router, params.amount);
 
         address[] memory lpTokens = new address[](2);
         lpTokens[0] = ICPMM(params.cfmm).token0();
         lpTokens[1] = ICPMM(params.cfmm).token1();
+
+        uint256[] memory reserves;
+        if(isCFMMWithdrawal) {
+            reserves = new uint256[](2);
+            (reserves[0], reserves[1]) = IDeltaSwapRouter02(router).removeLiquidity(lpTokens[0], lpTokens[1], params.amount,
+                params.amountsMin[0], params.amountsMin[1], params.to, block.number); //params must be to send to here
+        } else {
+            (reserves,) = IPositionManager(router).withdrawReserves(params); //params must be to send to here
+        }
 
         if(lpSwap0.path.length > 0 || lpSwap0.uniV3Path.length > 0) {
             if(lpSwap0.uniV3Path.length > 0) {
