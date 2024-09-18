@@ -248,14 +248,14 @@ contract LPZapperTest is CPMMGammaSwapSetup {
 
         if(_params.token0 == address(weth9)) {
             vm.expectRevert("LP_ZAPPER: PATH1_EXIT_NOT_WETH");
-            lpZapper.zapOutETH(params, lpSwap0, lpSwap1, isCFMMWithdrawal);
+            isCFMMWithdrawal ? lpZapper.dsZapOutETH(params, lpSwap0, lpSwap1) : lpZapper.zapOutETH(params, lpSwap0, lpSwap1);
             lpSwap1.protocolId = 1;
             lpSwap1.path = new address[](2);
             lpSwap1.path[0] = _params.token1;
             lpSwap1.path[1] = _params.token0;
         } else {
             vm.expectRevert("LP_ZAPPER: PATH0_EXIT_NOT_WETH");
-            lpZapper.zapOutETH(params, lpSwap0, lpSwap1, isCFMMWithdrawal);
+            isCFMMWithdrawal ? lpZapper.dsZapOutETH(params, lpSwap0, lpSwap1) :lpZapper.zapOutETH(params, lpSwap0, lpSwap1);
             lpSwap0.protocolId = 1;
             lpSwap0.path = new address[](2);
             lpSwap0.path[0] = _params.token0;
@@ -266,7 +266,7 @@ contract LPZapperTest is CPMMGammaSwapSetup {
         uint256 balToken0 = IERC20(_params.token0).balanceOf(user);
         uint256 balToken1 = IERC20(_params.token1).balanceOf(user);
 
-        lpZapper.zapOutETH(params, lpSwap0, lpSwap1, isCFMMWithdrawal);
+        isCFMMWithdrawal ?lpZapper.dsZapOutETH(params, lpSwap0, lpSwap1) : lpZapper.zapOutETH(params, lpSwap0, lpSwap1);
 
         assertEq(gslpBalance - withdrawAmt, IERC20(_params.lpToken).balanceOf(user));
         assertEq(balToken0, IERC20(_params.token0).balanceOf(user));
@@ -348,7 +348,7 @@ contract LPZapperTest is CPMMGammaSwapSetup {
         GammaSwapLibrary.safeApprove(_params.lpToken, address(lpZapper), withdrawAmt);
 
         vm.expectRevert("LP_ZAPPER: PATH0_EXIT_NOT_WETH");
-        lpZapper.zapOutETH(params, lpSwap0, lpSwap1, isCFMMWithdrawal);
+        isCFMMWithdrawal ? lpZapper.dsZapOutETH(params, lpSwap0, lpSwap1) : lpZapper.zapOutETH(params, lpSwap0, lpSwap1);
 
         lpSwap0.protocolId = 1;
         lpSwap0.path = new address[](3);
@@ -357,7 +357,7 @@ contract LPZapperTest is CPMMGammaSwapSetup {
         lpSwap0.path[2] = address(weth9);
 
         vm.expectRevert("LP_ZAPPER: PATH1_EXIT_NOT_WETH");
-        lpZapper.zapOutETH(params, lpSwap0, lpSwap1, isCFMMWithdrawal);
+        isCFMMWithdrawal ? lpZapper.dsZapOutETH(params, lpSwap0, lpSwap1) : lpZapper.zapOutETH(params, lpSwap0, lpSwap1);
 
         lpSwap1.protocolId = 1;
         lpSwap1.path = new address[](2);
@@ -368,7 +368,7 @@ contract LPZapperTest is CPMMGammaSwapSetup {
         uint256 balToken0 = IERC20(_params.token0).balanceOf(user);
         uint256 balToken1 = IERC20(_params.token1).balanceOf(user);
 
-        lpZapper.zapOutETH(params, lpSwap0, lpSwap1, isCFMMWithdrawal);
+        isCFMMWithdrawal ? lpZapper.dsZapOutETH(params, lpSwap0, lpSwap1) : lpZapper.zapOutETH(params, lpSwap0, lpSwap1);
 
         assertEq(gslpBalance - withdrawAmt, IERC20(_params.lpToken).balanceOf(user));
         assertEq(balToken0, IERC20(_params.token0).balanceOf(user));
@@ -498,12 +498,12 @@ contract LPZapperTest is CPMMGammaSwapSetup {
         _params.balUSDC6 = IERC20(usdc6).balanceOf(user);
 
         vm.expectRevert("LP_ZAPPER: INVALID_PARAM_TO");
-        lpZapper.zapOutToken(params, lpSwap0, lpSwap1, isCFMMWithdrawal);
+        isCFMMWithdrawal ? lpZapper.dsZapOutToken(params, lpSwap0, lpSwap1) : lpZapper.zapOutToken(params, lpSwap0, lpSwap1);
 
         params.to = user;
 
         vm.expectRevert("LP_ZAPPER: INVALID_PARAM_CFMM");
-        lpZapper.zapOutToken(params, lpSwap0, lpSwap1, isCFMMWithdrawal);
+        isCFMMWithdrawal ? lpZapper.dsZapOutToken(params, lpSwap0, lpSwap1) : lpZapper.zapOutToken(params, lpSwap0, lpSwap1);
 
         params.cfmm = address(cfmm);
 
@@ -512,12 +512,12 @@ contract LPZapperTest is CPMMGammaSwapSetup {
             lpSwap1.amount = type(uint256).max;
 
             vm.expectRevert("DeltaSwapRouter: INSUFFICIENT_OUTPUT_AMOUNT");
-            lpZapper.zapOutToken(params, lpSwap0, lpSwap1, isCFMMWithdrawal);
+            isCFMMWithdrawal ? lpZapper.dsZapOutToken(params, lpSwap0, lpSwap1) : lpZapper.zapOutToken(params, lpSwap0, lpSwap1);
         }
 
         lpSwap0.amount = 0;
         lpSwap1.amount = 0;
-        lpZapper.zapOutToken(params, lpSwap0, lpSwap1, isCFMMWithdrawal);
+        isCFMMWithdrawal ? lpZapper.dsZapOutToken(params, lpSwap0, lpSwap1) : lpZapper.zapOutToken(params, lpSwap0, lpSwap1);
 
         assertEq(gslpBalance - withdrawAmt, IERC20(_params.lpToken).balanceOf(user));
 

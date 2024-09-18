@@ -107,7 +107,17 @@ contract LPZapper is Initializable, UUPSUpgradeable, Ownable2Step, ILPZapper, Ba
     }
 
     /// @dev See {ILPZapper-zapOutETH}.
-    function zapOutETH(IPositionManager.WithdrawReservesParams memory params, LPSwapParams memory lpSwap0, LPSwapParams memory lpSwap1, bool isCFMMWithdrawal) external override virtual {
+    function zapOutETH(IPositionManager.WithdrawReservesParams memory params, LPSwapParams memory lpSwap0, LPSwapParams memory lpSwap1) external override virtual {
+        _zapOutETH(params, lpSwap0, lpSwap1, false);
+    }
+
+    /// @dev See {ILPZapper-dsZapOutETH}.
+    function dsZapOutETH(IPositionManager.WithdrawReservesParams memory params, LPSwapParams memory lpSwap0, LPSwapParams memory lpSwap1) external override virtual {
+        _zapOutETH(params, lpSwap0, lpSwap1, true);
+    }
+
+    /// @dev Set isCFMMWithdrawal to true if withdrawing from CFMM specified in `params`
+    function _zapOutETH(IPositionManager.WithdrawReservesParams memory params, LPSwapParams memory lpSwap0, LPSwapParams memory lpSwap1, bool isCFMMWithdrawal) internal virtual {
         require(params.to != address(0), "LP_ZAPPER: INVALID_PARAM_TO");
 
         if(ICPMM(params.cfmm).token0() == WETH) {
@@ -122,15 +132,25 @@ contract LPZapper is Initializable, UUPSUpgradeable, Ownable2Step, ILPZapper, Ba
         address to = params.to;
         params.to = address(this);
 
-        zapOutToken(params, lpSwap0, lpSwap1, isCFMMWithdrawal);
+        _zapOutToken(params, lpSwap0, lpSwap1, isCFMMWithdrawal);
 
         unwrapWETH(0, to);
     }
 
     /// @dev See {ILPZapper-zapOutToken}.
+    function zapOutToken(IPositionManager.WithdrawReservesParams memory params, LPSwapParams memory lpSwap0, LPSwapParams memory lpSwap1) external override virtual {
+        _zapOutToken(params, lpSwap0, lpSwap1, false);
+    }
+
+    /// @dev See {ILPZapper-dsZapOutToken}.
+    function dsZapOutToken(IPositionManager.WithdrawReservesParams memory params, LPSwapParams memory lpSwap0, LPSwapParams memory lpSwap1) external override virtual {
+        _zapOutToken(params, lpSwap0, lpSwap1, true);
+    }
+
     /// @notice Slippage of conversion of tokens after withdrawal is handled by the amount parameter of the LPSwapParams structs lpSwap0 and lpSwap1
     /// @notice If no instructions are provided in lpSwap0 and/or lpSwap1 then the token is withdrawn as the token of the GammaPool
-    function zapOutToken(IPositionManager.WithdrawReservesParams memory params, LPSwapParams memory lpSwap0, LPSwapParams memory lpSwap1, bool isCFMMWithdrawal) public override virtual {
+    /// @dev Set isCFMMWithdrawal to true if withdrawing from CFMM specified in `params`
+    function _zapOutToken(IPositionManager.WithdrawReservesParams memory params, LPSwapParams memory lpSwap0, LPSwapParams memory lpSwap1, bool isCFMMWithdrawal) internal virtual {
         require(params.to != address(0), "LP_ZAPPER: INVALID_PARAM_TO");
         require(params.cfmm != address(0), "LP_ZAPPER: INVALID_PARAM_CFMM");
         address to = params.to;
