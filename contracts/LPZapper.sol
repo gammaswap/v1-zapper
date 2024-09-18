@@ -151,9 +151,9 @@ contract LPZapper is Initializable, UUPSUpgradeable, Ownable2Step, ILPZapper, Ba
         if(isCFMMWithdrawal) {
             reserves = new uint256[](2);
             (reserves[0], reserves[1]) = IDeltaSwapRouter02(router).removeLiquidity(lpTokens[0], lpTokens[1], params.amount,
-                params.amountsMin[0], params.amountsMin[1], params.to, block.number); //params must be to send to here
+                params.amountsMin[0], params.amountsMin[1], params.to, type(uint256).max);
         } else {
-            (reserves,) = IPositionManager(router).withdrawReserves(params); //params must be to send to here
+            (reserves,) = IPositionManager(router).withdrawReserves(params);
         }
 
         if(lpSwap0.path.length > 0 || lpSwap0.uniV3Path.length > 0) {
