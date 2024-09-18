@@ -38,12 +38,18 @@ interface ILPZapper {
 
     /// @dev Zap out GammaPool tokens specified in the WithdrawReservesParams as ETH
     /// @dev Swap paths to convert tokens into ETH must end in WETH. Therefore, only need to provide a path if a withdrawn token is not already WETH
-    /// @dev If withdrawing from CFMM, protocolId in `params` is used to identify CFMM router
     /// @param params - WithdrawReservesParams of struct to withdraw liquidity from the GammaPool
     /// @param lpSwap0 - instructions to swap token0 withdrawn from the GammaPool into WETH
     /// @param lpSwap1 - instructions to swap token1 withdrawn from the GammaPool into WETH
-    /// @param isCFMMWithdrawal - true if withdrawing directly from CFMM, false if withdrawing from GammaPool
-    function zapOutETH(IPositionManager.WithdrawReservesParams memory params, LPSwapParams memory lpSwap0, LPSwapParams memory lpSwap1, bool isCFMMWithdrawal) external;
+    function zapOutETH(IPositionManager.WithdrawReservesParams memory params, LPSwapParams memory lpSwap0, LPSwapParams memory lpSwap1) external;
+
+    /// @dev Zap out CFMM/DeltaSwap tokens specified in the WithdrawReservesParams as ETH
+    /// @dev Swap paths to convert tokens into ETH must end in WETH. Therefore, only need to provide a path if a withdrawn token is not already WETH
+    /// @dev ProtocolId in `params` is used to identify CFMM router to withdraw liquidity
+    /// @param params - WithdrawReservesParams of struct to withdraw liquidity from the GammaPool
+    /// @param lpSwap0 - instructions to swap token0 withdrawn from the GammaPool into WETH
+    /// @param lpSwap1 - instructions to swap token1 withdrawn from the GammaPool into WETH
+    function dsZapOutETH(IPositionManager.WithdrawReservesParams memory params, LPSwapParams memory lpSwap0, LPSwapParams memory lpSwap1) external;
 
     /// @dev Zap in any token into a GammaPool of any token pair specified in the DepositReservesParams
     /// @param params - DepositReservesParams of struct to deposit liquidity into GammaPool
@@ -52,12 +58,17 @@ interface ILPZapper {
     function zapInToken(address tokenIn, uint256 fundAmount, IPositionManager.DepositReservesParams memory params, LPSwapParams memory lpSwap, FundSwapParams memory fundSwap) external;
 
     /// @dev Zap out GammaPool tokens specified in the WithdrawReservesParams as the destination token specified in the lpSwap0 and lpSwap1 parameters
-    /// @dev If withdrawing from CFMM, protocolId in `params` is used to identify CFMM router
     /// @param params - WithdrawReservesParams of struct to withdraw liquidity from the GammaPool
     /// @param lpSwap0 - instructions to swap token0 withdrawn from the GammaPool into any token
     /// @param lpSwap1 - instructions to swap token1 withdrawn from the GammaPool into any token
-    /// @param isCFMMWithdrawal - true if withdrawing directly from CFMM, false if withdrawing from GammaPool
-    function zapOutToken(IPositionManager.WithdrawReservesParams memory params, LPSwapParams memory lpSwap0, LPSwapParams memory lpSwap1, bool isCFMMWithdrawal) external;
+    function zapOutToken(IPositionManager.WithdrawReservesParams memory params, LPSwapParams memory lpSwap0, LPSwapParams memory lpSwap1) external;
+
+    /// @dev Zap out CFMM/DeltaSwap tokens specified in the WithdrawReservesParams as the destination token specified in the lpSwap0 and lpSwap1 parameters
+    /// @dev ProtocolId in `params` is used to identify CFMM router to withdraw liquidity
+    /// @param params - WithdrawReservesParams of struct to withdraw liquidity from the GammaPool
+    /// @param lpSwap0 - instructions to swap token0 withdrawn from the GammaPool into any token
+    /// @param lpSwap1 - instructions to swap token1 withdrawn from the GammaPool into any token
+    function dsZapOutToken(IPositionManager.WithdrawReservesParams memory params, LPSwapParams memory lpSwap0, LPSwapParams memory lpSwap1) external;
 
     /// @dev Zap in fundAmount of any tokenIn into GammaPool as token0 and token1 of GammaPool
     /// @param tokenIn - token zapped in
