@@ -229,14 +229,14 @@ contract LPZapperTest is CPMMGammaSwapSetup {
 
         if(token0 == address(weth9)) {
             vm.expectRevert("LP_ZAPPER: PATH1_EXIT_NOT_WETH");
-            lpZapper.zapOutETH(params, lpSwap0, lpSwap1);
+            lpZapper.zapOutETH(params, lpSwap0, lpSwap1, false);
             lpSwap1.protocolId = 1;
             lpSwap1.path = new address[](2);
             lpSwap1.path[0] = token1;
             lpSwap1.path[1] = token0;
         } else {
             vm.expectRevert("LP_ZAPPER: PATH0_EXIT_NOT_WETH");
-            lpZapper.zapOutETH(params, lpSwap0, lpSwap1);
+            lpZapper.zapOutETH(params, lpSwap0, lpSwap1, false);
             lpSwap0.protocolId = 1;
             lpSwap0.path = new address[](2);
             lpSwap0.path[0] = token0;
@@ -247,7 +247,7 @@ contract LPZapperTest is CPMMGammaSwapSetup {
         uint256 balToken0 = IERC20(token0).balanceOf(user);
         uint256 balToken1 = IERC20(token1).balanceOf(user);
 
-        lpZapper.zapOutETH(params, lpSwap0, lpSwap1);
+        lpZapper.zapOutETH(params, lpSwap0, lpSwap1, false);
 
         assertEq(gslpBalance - withdrawAmt, poolW9.balanceOf(user));
         assertEq(balToken0, IERC20(token0).balanceOf(user));
@@ -312,7 +312,7 @@ contract LPZapperTest is CPMMGammaSwapSetup {
         GammaSwapLibrary.safeApprove(address(pool), address(lpZapper), withdrawAmt);
 
         vm.expectRevert("LP_ZAPPER: PATH0_EXIT_NOT_WETH");
-        lpZapper.zapOutETH(params, lpSwap0, lpSwap1);
+        lpZapper.zapOutETH(params, lpSwap0, lpSwap1, false);
 
         lpSwap0.protocolId = 1;
         lpSwap0.path = new address[](3);
@@ -321,7 +321,7 @@ contract LPZapperTest is CPMMGammaSwapSetup {
         lpSwap0.path[2] = address(weth9);
 
         vm.expectRevert("LP_ZAPPER: PATH1_EXIT_NOT_WETH");
-        lpZapper.zapOutETH(params, lpSwap0, lpSwap1);
+        lpZapper.zapOutETH(params, lpSwap0, lpSwap1, false);
 
         lpSwap1.protocolId = 1;
         lpSwap1.path = new address[](2);
@@ -332,7 +332,7 @@ contract LPZapperTest is CPMMGammaSwapSetup {
         uint256 balToken0 = IERC20(token0).balanceOf(user);
         uint256 balToken1 = IERC20(token1).balanceOf(user);
 
-        lpZapper.zapOutETH(params, lpSwap0, lpSwap1);
+        lpZapper.zapOutETH(params, lpSwap0, lpSwap1, false);
 
         assertEq(gslpBalance - withdrawAmt, pool.balanceOf(user));
         assertEq(balToken0, IERC20(token0).balanceOf(user));

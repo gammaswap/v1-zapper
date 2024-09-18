@@ -107,7 +107,7 @@ contract LPZapper is Initializable, UUPSUpgradeable, Ownable2Step, ILPZapper, Ba
     }
 
     /// @dev See {ILPZapper-zapOutETH}.
-    function zapOutETH(IPositionManager.WithdrawReservesParams memory params, LPSwapParams memory lpSwap0, LPSwapParams memory lpSwap1) external override virtual {
+    function zapOutETH(IPositionManager.WithdrawReservesParams memory params, LPSwapParams memory lpSwap0, LPSwapParams memory lpSwap1, bool isCFMMWithdrawal) external override virtual {
         require(params.to != address(0), "LP_ZAPPER: INVALID_PARAM_TO");
 
         if(ICPMM(params.cfmm).token0() == WETH) {
@@ -122,7 +122,7 @@ contract LPZapper is Initializable, UUPSUpgradeable, Ownable2Step, ILPZapper, Ba
         address to = params.to;
         params.to = address(this);
 
-        zapOutToken(params, lpSwap0, lpSwap1, false);
+        zapOutToken(params, lpSwap0, lpSwap1, isCFMMWithdrawal);
 
         unwrapWETH(0, to);
     }
