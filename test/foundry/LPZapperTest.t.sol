@@ -11,6 +11,17 @@ import "../../contracts/LPZapper.sol";
 
 contract LPZapperTest is CPMMGammaSwapSetup {
 
+    struct TestParams {
+        address lpToken;
+        address token0;
+        address token1;
+        uint256 balWETH;
+        uint256 balUSDC;
+        uint256 balWETH6;
+        uint256 balUSDC6;
+        uint256 balETH;
+    }
+
     ILPZapper lpZapper;
     address user;
 
@@ -163,7 +174,7 @@ contract LPZapperTest is CPMMGammaSwapSetup {
         assertApproxEqRel(expFundAmount / 2, userLPBalance * reserve1 / totalSupply, 15e16);
     }
 
-    function testZapOutETH(uint8 percent) public {
+    function testZapOutETH(uint8 percent, bool isCFMMWithdrawal) public {
         percent = percent < 10 ? 10 : percent;
         percent = percent > 100 ? 100 : percent;
 
@@ -181,14 +192,31 @@ contract LPZapperTest is CPMMGammaSwapSetup {
         depositParams.amountsDesired[0] = 1e18;
         depositParams.amountsDesired[1] = 1e18;
 
-        address token0 = ICPMM(cfmmW9).token0();
-        address token1 = ICPMM(cfmmW9).token1();
+        TestParams memory _params = TestParams({
+            lpToken: address(poolW9),
+            token0: ICPMM(cfmmW9).token0(),
+            token1: ICPMM(cfmmW9).token1(),
+            balWETH: 0,
+            balUSDC: 0,
+            balWETH6: 0,
+            balUSDC6: 0,
+            balETH: 0
+        });
 
-        IERC20(token0).approve(address(posMgr), 1e18);
-        IERC20(token1).approve(address(posMgr), 1e18);
+        if(isCFMMWithdrawal) {
+            _params.lpToken = address(cfmmW9);
+            IERC20(_params.token0).approve(address(uniRouter), 1e18);
+            IERC20(_params.token1).approve(address(uniRouter), 1e18);
 
-        posMgr.depositReserves(depositParams);
-        uint256 gslpBalance = poolW9.balanceOf(user);
+            uniRouter.addLiquidity(_params.token0, _params.token1, 1e18, 1e18, 0, 0, user, type(uint256).max);
+        } else {
+            IERC20(_params.token0).approve(address(posMgr), 1e18);
+            IERC20(_params.token1).approve(address(posMgr), 1e18);
+
+            posMgr.depositReserves(depositParams);
+        }
+
+        uint256 gslpBalance = IERC20(_params.lpToken).balanceOf(user);
 
         uint256 withdrawAmt = gslpBalance * percent / 100;
         assertGt(withdrawAmt, 0);
@@ -216,38 +244,38 @@ contract LPZapperTest is CPMMGammaSwapSetup {
             uniV3Path: new bytes(0)
         });
 
-        GammaSwapLibrary.safeApprove(address(poolW9), address(lpZapper), withdrawAmt);
+        GammaSwapLibrary.safeApprove(_params.lpToken, address(lpZapper), withdrawAmt);
 
-        if(token0 == address(weth9)) {
+        if(_params.token0 == address(weth9)) {
             vm.expectRevert("LP_ZAPPER: PATH1_EXIT_NOT_WETH");
-            lpZapper.zapOutETH(params, lpSwap0, lpSwap1);
+            lpZapper.zapOutETH(params, lpSwap0, lpSwap1, isCFMMWithdrawal);
             lpSwap1.protocolId = 1;
             lpSwap1.path = new address[](2);
-            lpSwap1.path[0] = token1;
-            lpSwap1.path[1] = token0;
+            lpSwap1.path[0] = _params.token1;
+            lpSwap1.path[1] = _params.token0;
         } else {
             vm.expectRevert("LP_ZAPPER: PATH0_EXIT_NOT_WETH");
-            lpZapper.zapOutETH(params, lpSwap0, lpSwap1);
+            lpZapper.zapOutETH(params, lpSwap0, lpSwap1, isCFMMWithdrawal);
             lpSwap0.protocolId = 1;
             lpSwap0.path = new address[](2);
-            lpSwap0.path[0] = token0;
-            lpSwap0.path[1] = token1;
+            lpSwap0.path[0] = _params.token0;
+            lpSwap0.path[1] = _params.token1;
         }
 
-        uint256 balETH = address(user).balance;
-        uint256 balToken0 = IERC20(token0).balanceOf(user);
-        uint256 balToken1 = IERC20(token1).balanceOf(user);
+        _params.balETH = address(user).balance;
+        uint256 balToken0 = IERC20(_params.token0).balanceOf(user);
+        uint256 balToken1 = IERC20(_params.token1).balanceOf(user);
 
-        lpZapper.zapOutETH(params, lpSwap0, lpSwap1);
+        lpZapper.zapOutETH(params, lpSwap0, lpSwap1, isCFMMWithdrawal);
 
-        assertEq(gslpBalance - withdrawAmt, poolW9.balanceOf(user));
-        assertEq(balToken0, IERC20(token0).balanceOf(user));
-        assertEq(balToken1, IERC20(token1).balanceOf(user));
-        assertGt(address(user).balance, balETH);
+        assertEq(gslpBalance - withdrawAmt, IERC20(_params.lpToken).balanceOf(user));
+        assertEq(balToken0, IERC20(_params.token0).balanceOf(user));
+        assertEq(balToken1, IERC20(_params.token1).balanceOf(user));
+        assertGt(address(user).balance, _params.balETH);
         assertApproxEqRel(address(user).balance, 2e18 * uint256(percent) / 100, 15e15);
     }
 
-    function testZapOutETHFromTokens(uint8 percent) public {
+    function testZapOutETHFromTokens(uint8 percent, bool isCFMMWithdrawal) public {
         percent = percent < 10 ? 10 : percent;
         percent = percent > 100 ? 100 : percent;
 
@@ -265,14 +293,31 @@ contract LPZapperTest is CPMMGammaSwapSetup {
         depositParams.amountsDesired[0] = 1e18;
         depositParams.amountsDesired[1] = 1e18;
 
-        address token0 = ICPMM(cfmm).token0();
-        address token1 = ICPMM(cfmm).token1();
+        TestParams memory _params = TestParams({
+            lpToken: address(pool),
+            token0: ICPMM(cfmm).token0(),
+            token1: ICPMM(cfmm).token1(),
+            balWETH: 0,
+            balUSDC: 0,
+            balWETH6: 0,
+            balUSDC6: 0,
+            balETH: 0
+        });
 
-        IERC20(token0).approve(address(posMgr), 1e18);
-        IERC20(token1).approve(address(posMgr), 1e18);
+        if(isCFMMWithdrawal) {
+            _params.lpToken = address(cfmm);
+            IERC20(_params.token0).approve(address(uniRouter), 1e18);
+            IERC20(_params.token1).approve(address(uniRouter), 1e18);
 
-        posMgr.depositReserves(depositParams);
-        uint256 gslpBalance = pool.balanceOf(user);
+            uniRouter.addLiquidity(_params.token0, _params.token1, 1e18, 1e18, 0, 0, user, type(uint256).max);
+        } else {
+            IERC20(_params.token0).approve(address(posMgr), 1e18);
+            IERC20(_params.token1).approve(address(posMgr), 1e18);
+
+            posMgr.depositReserves(depositParams);
+        }
+
+        uint256 gslpBalance = IERC20(_params.lpToken).balanceOf(user);
 
         uint256 withdrawAmt = gslpBalance * percent / 100;
         assertGt(withdrawAmt, 0);
@@ -300,39 +345,39 @@ contract LPZapperTest is CPMMGammaSwapSetup {
             uniV3Path: new bytes(0)
         });
 
-        GammaSwapLibrary.safeApprove(address(pool), address(lpZapper), withdrawAmt);
+        GammaSwapLibrary.safeApprove(_params.lpToken, address(lpZapper), withdrawAmt);
 
         vm.expectRevert("LP_ZAPPER: PATH0_EXIT_NOT_WETH");
-        lpZapper.zapOutETH(params, lpSwap0, lpSwap1);
+        lpZapper.zapOutETH(params, lpSwap0, lpSwap1, isCFMMWithdrawal);
 
         lpSwap0.protocolId = 1;
         lpSwap0.path = new address[](3);
-        lpSwap0.path[0] = token0;
-        lpSwap0.path[1] = token1;
+        lpSwap0.path[0] = _params.token0;
+        lpSwap0.path[1] = _params.token1;
         lpSwap0.path[2] = address(weth9);
 
         vm.expectRevert("LP_ZAPPER: PATH1_EXIT_NOT_WETH");
-        lpZapper.zapOutETH(params, lpSwap0, lpSwap1);
+        lpZapper.zapOutETH(params, lpSwap0, lpSwap1, isCFMMWithdrawal);
 
         lpSwap1.protocolId = 1;
         lpSwap1.path = new address[](2);
-        lpSwap1.path[0] = token1;
+        lpSwap1.path[0] = _params.token1;
         lpSwap1.path[1] = address(weth9);
 
-        uint256 balETH = address(user).balance;
-        uint256 balToken0 = IERC20(token0).balanceOf(user);
-        uint256 balToken1 = IERC20(token1).balanceOf(user);
+        _params.balETH = address(user).balance;
+        uint256 balToken0 = IERC20(_params.token0).balanceOf(user);
+        uint256 balToken1 = IERC20(_params.token1).balanceOf(user);
 
-        lpZapper.zapOutETH(params, lpSwap0, lpSwap1);
+        lpZapper.zapOutETH(params, lpSwap0, lpSwap1, isCFMMWithdrawal);
 
-        assertEq(gslpBalance - withdrawAmt, pool.balanceOf(user));
-        assertEq(balToken0, IERC20(token0).balanceOf(user));
-        assertEq(balToken1, IERC20(token1).balanceOf(user));
-        assertGt(address(user).balance, balETH);
+        assertEq(gslpBalance - withdrawAmt, IERC20(_params.lpToken).balanceOf(user));
+        assertEq(balToken0, IERC20(_params.token0).balanceOf(user));
+        assertEq(balToken1, IERC20(_params.token1).balanceOf(user));
+        assertGt(address(user).balance, _params.balETH);
         assertApproxEqRel(address(user).balance, 2e18 * uint256(percent) / 100, 15e15);
     }
 
-    function testZapOut(uint8 swapPath, uint8 percent) public {
+    function testZapOut(uint8 swapPath, uint8 percent, bool isCFMMWithdrawal) public {
         percent = percent < 10 ? 10 : percent;
         percent = percent > 100 ? 100 : percent;
 
@@ -348,15 +393,31 @@ contract LPZapperTest is CPMMGammaSwapSetup {
         depositParams.amountsDesired[0] = 1e18;
         depositParams.amountsDesired[1] = 1e18;
 
-        address token0 = ICPMM(cfmm).token0();
-        address token1 = ICPMM(cfmm).token1();
+        TestParams memory _params = TestParams({
+            lpToken: address(pool),
+            token0: ICPMM(cfmm).token0(),
+            token1: ICPMM(cfmm).token1(),
+            balWETH: 0,
+            balUSDC: 0,
+            balWETH6: 0,
+            balUSDC6: 0,
+            balETH: 0
+        });
 
-        IERC20(token0).approve(address(posMgr), 1e18);
-        IERC20(token1).approve(address(posMgr), 1e18);
+        if(isCFMMWithdrawal) {
+            _params.lpToken = address(cfmm);
+            IERC20(_params.token0).approve(address(uniRouter), 1e18);
+            IERC20(_params.token1).approve(address(uniRouter), 1e18);
 
-        posMgr.depositReserves(depositParams);
+            uniRouter.addLiquidity(_params.token0, _params.token1, 1e18, 1e18, 0, 0, user, type(uint256).max);
+        } else {
+            IERC20(_params.token0).approve(address(posMgr), 1e18);
+            IERC20(_params.token1).approve(address(posMgr), 1e18);
 
-        uint256 gslpBalance = pool.balanceOf(user);
+            posMgr.depositReserves(depositParams);
+        }
+
+        uint256 gslpBalance = IERC20(_params.lpToken).balanceOf(user);
 
         uint256 withdrawAmt = gslpBalance * percent / 100;
 
@@ -386,63 +447,63 @@ contract LPZapperTest is CPMMGammaSwapSetup {
         if(swapPath == 1) { // usdc
             lpSwap0.protocolId = 1;
             lpSwap0.path = new address[](2);
-            lpSwap0.path[0] = token0;
-            lpSwap0.path[1] = token1;
+            lpSwap0.path[0] = _params.token0;
+            lpSwap0.path[1] = _params.token1;
         } else if(swapPath == 2) { // weth
             lpSwap1.protocolId = 1;
             lpSwap1.path = new address[](2);
-            lpSwap1.path[0] = token1;
-            lpSwap1.path[1] = token0;
+            lpSwap1.path[0] = _params.token1;
+            lpSwap1.path[1] = _params.token0;
         } else if(swapPath == 3) { // usdc6
             lpSwap0.protocolId = 1;
             lpSwap0.path = new address[](2);
-            lpSwap0.path[0] = token0; // weth
+            lpSwap0.path[0] = _params.token0; // weth
             lpSwap0.path[1] = address(usdc6); // usdc6
         } else if(swapPath == 4) { // weth6
             lpSwap0.protocolId = 1;
             lpSwap0.path = new address[](3);
-            lpSwap0.path[0] = token0; // weth
+            lpSwap0.path[0] = _params.token0; // weth
             lpSwap0.path[1] = address(usdc6); // usdc6
             lpSwap0.path[2] = address(weth6); // weth6
         } else if(swapPath == 5) { // weth6
             lpSwap1.protocolId = 1;
             lpSwap1.path = new address[](2);
-            lpSwap1.path[0] = token1; // usdc
+            lpSwap1.path[0] = _params.token1; // usdc
             lpSwap1.path[1] = address(weth6); // weth6
         } else if(swapPath == 6) { // usdc6
             lpSwap1.protocolId = 1;
             lpSwap1.path = new address[](3);
-            lpSwap1.path[0] = token1; // usdc
-            lpSwap1.path[1] = token0; // weth
+            lpSwap1.path[0] = _params.token1; // usdc
+            lpSwap1.path[1] = _params.token0; // weth
             lpSwap1.path[2] = address(usdc6); // usdc6
         } else if(swapPath == 7) { // swap both to weth6
             lpSwap0.protocolId = 1;
             lpSwap0.path = new address[](3);
-            lpSwap0.path[0] = token0; // weth
+            lpSwap0.path[0] = _params.token0; // weth
             lpSwap0.path[1] = address(usdc6); // usdc6
             lpSwap0.path[2] = address(weth6); // weth6
             lpSwap1.protocolId = 1;
             lpSwap1.path = new address[](2);
-            lpSwap1.path[0] = token1; // usdc
+            lpSwap1.path[0] = _params.token1; // usdc
             lpSwap1.path[1] = address(weth6); // weth6
         }
 
         vm.startPrank(user);
 
-        GammaSwapLibrary.safeApprove(address(pool), address(lpZapper), withdrawAmt);
+        GammaSwapLibrary.safeApprove(_params.lpToken, address(lpZapper), withdrawAmt);
 
-        uint256 balWETH = IERC20(token0).balanceOf(user);
-        uint256 balUSDC = IERC20(token1).balanceOf(user);
-        uint256 balWETH6 = IERC20(weth6).balanceOf(user);
-        uint256 balUSDC6 = IERC20(usdc6).balanceOf(user);
+        _params.balWETH = IERC20(_params.token0).balanceOf(user);
+        _params.balUSDC = IERC20(_params.token1).balanceOf(user);
+        _params.balWETH6 = IERC20(weth6).balanceOf(user);
+        _params.balUSDC6 = IERC20(usdc6).balanceOf(user);
 
         vm.expectRevert("LP_ZAPPER: INVALID_PARAM_TO");
-        lpZapper.zapOutToken(params, lpSwap0, lpSwap1);
+        lpZapper.zapOutToken(params, lpSwap0, lpSwap1, isCFMMWithdrawal);
 
         params.to = user;
 
         vm.expectRevert("LP_ZAPPER: INVALID_PARAM_CFMM");
-        lpZapper.zapOutToken(params, lpSwap0, lpSwap1);
+        lpZapper.zapOutToken(params, lpSwap0, lpSwap1, isCFMMWithdrawal);
 
         params.cfmm = address(cfmm);
 
@@ -451,44 +512,44 @@ contract LPZapperTest is CPMMGammaSwapSetup {
             lpSwap1.amount = type(uint256).max;
 
             vm.expectRevert("DeltaSwapRouter: INSUFFICIENT_OUTPUT_AMOUNT");
-            lpZapper.zapOutToken(params, lpSwap0, lpSwap1);
+            lpZapper.zapOutToken(params, lpSwap0, lpSwap1, isCFMMWithdrawal);
         }
 
         lpSwap0.amount = 0;
         lpSwap1.amount = 0;
-        lpZapper.zapOutToken(params, lpSwap0, lpSwap1);
+        lpZapper.zapOutToken(params, lpSwap0, lpSwap1, isCFMMWithdrawal);
 
-        assertEq(gslpBalance - withdrawAmt, pool.balanceOf(user));
+        assertEq(gslpBalance - withdrawAmt, IERC20(_params.lpToken).balanceOf(user));
 
         if(swapPath == 0) {
-            assertEq(balWETH + 1e18 * uint256(percent) / 100, IERC20(token0).balanceOf(user));
-            assertEq(balUSDC + 1e18 * uint256(percent) / 100, IERC20(token1).balanceOf(user));
+            assertEq(_params.balWETH + 1e18 * uint256(percent) / 100, IERC20(_params.token0).balanceOf(user));
+            assertEq(_params.balUSDC + 1e18 * uint256(percent) / 100, IERC20(_params.token1).balanceOf(user));
         } else if(swapPath == 1) { // usdc
-            assertEq(balWETH, IERC20(token0).balanceOf(user));
-            assertApproxEqRel(balUSDC + 1e18 * 2 * uint256(percent) / 100, IERC20(token1).balanceOf(user), 1e16);
+            assertEq(_params.balWETH, IERC20(_params.token0).balanceOf(user));
+            assertApproxEqRel(_params.balUSDC + 1e18 * 2 * uint256(percent) / 100, IERC20(_params.token1).balanceOf(user), 1e16);
         } else if(swapPath == 2) { // weth
-            assertApproxEqRel(balWETH + 1e18 * 2 * uint256(percent) / 100, IERC20(token0).balanceOf(user), 1e16);
-            assertEq(balUSDC, IERC20(token1).balanceOf(user));
+            assertApproxEqRel(_params.balWETH + 1e18 * 2 * uint256(percent) / 100, IERC20(_params.token0).balanceOf(user), 1e16);
+            assertEq(_params.balUSDC, IERC20(_params.token1).balanceOf(user));
         } else if(swapPath == 3) { // usdc6
-            assertEq(balWETH, IERC20(token0).balanceOf(user));
-            assertEq(balUSDC + 1e18 * uint256(percent) / 100, IERC20(token1).balanceOf(user));
-            assertApproxEqRel(balUSDC6 + 1e6 * uint256(percent) / 100, IERC20(usdc6).balanceOf(user), 1e16);
+            assertEq(_params.balWETH, IERC20(_params.token0).balanceOf(user));
+            assertEq(_params.balUSDC + 1e18 * uint256(percent) / 100, IERC20(_params.token1).balanceOf(user));
+            assertApproxEqRel(_params.balUSDC6 + 1e6 * uint256(percent) / 100, IERC20(usdc6).balanceOf(user), 1e16);
         } else if(swapPath == 4) { // weth6
-            assertEq(balWETH, IERC20(token0).balanceOf(user));
-            assertEq(balUSDC + 1e18 * uint256(percent) / 100, IERC20(token1).balanceOf(user));
-            assertApproxEqRel(balWETH6 + 1e6 * uint256(percent) / 100, IERC20(weth6).balanceOf(user), 16e15);
+            assertEq(_params.balWETH, IERC20(_params.token0).balanceOf(user));
+            assertEq(_params.balUSDC + 1e18 * uint256(percent) / 100, IERC20(_params.token1).balanceOf(user));
+            assertApproxEqRel(_params.balWETH6 + 1e6 * uint256(percent) / 100, IERC20(weth6).balanceOf(user), 16e15);
         } else if(swapPath == 5) { // weth6
-            assertEq(balWETH + 1e18 * uint256(percent) / 100, IERC20(token0).balanceOf(user));
-            assertEq(balUSDC, IERC20(token1).balanceOf(user));
-            assertApproxEqRel(balWETH6 + 1e6 * uint256(percent) / 100, IERC20(weth6).balanceOf(user), 16e15);
+            assertEq(_params.balWETH + 1e18 * uint256(percent) / 100, IERC20(_params.token0).balanceOf(user));
+            assertEq(_params.balUSDC, IERC20(_params.token1).balanceOf(user));
+            assertApproxEqRel(_params.balWETH6 + 1e6 * uint256(percent) / 100, IERC20(weth6).balanceOf(user), 16e15);
         } else if(swapPath == 6) { // usdc6
-            assertEq(balWETH + 1e18 * uint256(percent) / 100, IERC20(token0).balanceOf(user));
-            assertEq(balUSDC, IERC20(token1).balanceOf(user));
-            assertApproxEqRel(balUSDC6 + 1e6 * uint256(percent) / 100, IERC20(usdc6).balanceOf(user), 16e15);
+            assertEq(_params.balWETH + 1e18 * uint256(percent) / 100, IERC20(_params.token0).balanceOf(user));
+            assertEq(_params.balUSDC, IERC20(_params.token1).balanceOf(user));
+            assertApproxEqRel(_params.balUSDC6 + 1e6 * uint256(percent) / 100, IERC20(usdc6).balanceOf(user), 16e15);
         } else if(swapPath == 7) { // weth6
-            assertEq(balUSDC, IERC20(token0).balanceOf(user));
-            assertEq(balUSDC, IERC20(token1).balanceOf(user));
-            assertApproxEqRel(balWETH6 + 1e6 * 2 * uint256(percent) / 100, IERC20(weth6).balanceOf(user), 3e16);
+            assertEq(_params.balUSDC, IERC20(_params.token0).balanceOf(user));
+            assertEq(_params.balUSDC, IERC20(_params.token1).balanceOf(user));
+            assertApproxEqRel(_params.balWETH6 + 1e6 * 2 * uint256(percent) / 100, IERC20(weth6).balanceOf(user), 3e16);
         }
         vm.stopPrank();
     }

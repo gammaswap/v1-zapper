@@ -107,7 +107,7 @@ contract LPZapper is Initializable, UUPSUpgradeable, Ownable2Step, ILPZapper, Ba
     }
 
     /// @dev See {ILPZapper-zapOutETH}.
-    function zapOutETH(IPositionManager.WithdrawReservesParams memory params, LPSwapParams memory lpSwap0, LPSwapParams memory lpSwap1) external override virtual {
+    function zapOutETH(IPositionManager.WithdrawReservesParams memory params, LPSwapParams memory lpSwap0, LPSwapParams memory lpSwap1, bool isCFMMWithdrawal) external override virtual {
         require(params.to != address(0), "LP_ZAPPER: INVALID_PARAM_TO");
 
         if(ICPMM(params.cfmm).token0() == WETH) {
@@ -122,7 +122,7 @@ contract LPZapper is Initializable, UUPSUpgradeable, Ownable2Step, ILPZapper, Ba
         address to = params.to;
         params.to = address(this);
 
-        zapOutToken(params, lpSwap0, lpSwap1);
+        zapOutToken(params, lpSwap0, lpSwap1, isCFMMWithdrawal);
 
         unwrapWETH(0, to);
     }
@@ -130,22 +130,31 @@ contract LPZapper is Initializable, UUPSUpgradeable, Ownable2Step, ILPZapper, Ba
     /// @dev See {ILPZapper-zapOutToken}.
     /// @notice Slippage of conversion of tokens after withdrawal is handled by the amount parameter of the LPSwapParams structs lpSwap0 and lpSwap1
     /// @notice If no instructions are provided in lpSwap0 and/or lpSwap1 then the token is withdrawn as the token of the GammaPool
-    function zapOutToken(IPositionManager.WithdrawReservesParams memory params, LPSwapParams memory lpSwap0, LPSwapParams memory lpSwap1) public override virtual {
+    function zapOutToken(IPositionManager.WithdrawReservesParams memory params, LPSwapParams memory lpSwap0, LPSwapParams memory lpSwap1, bool isCFMMWithdrawal) public override virtual {
         require(params.to != address(0), "LP_ZAPPER: INVALID_PARAM_TO");
         require(params.cfmm != address(0), "LP_ZAPPER: INVALID_PARAM_CFMM");
         address to = params.to;
         params.to = address(this);
 
-        address gammaPool = getGammaPoolAddress(params.cfmm, params.protocolId);
+        (address lpToken, address router) = isCFMMWithdrawal ?
+            (params.cfmm, _getCFMMRouter(params.protocolId)) :
+            (getGammaPoolAddress(params.cfmm, params.protocolId), positionManager);
 
-        GammaSwapLibrary.safeTransferFrom(gammaPool, msg.sender, address(this), params.amount);
-
-        GammaSwapLibrary.safeApprove(gammaPool, positionManager, params.amount);
-        (uint256[] memory reserves,) = IPositionManager(positionManager).withdrawReserves(params); //params must be to send to here
+        GammaSwapLibrary.safeTransferFrom(lpToken, msg.sender, address(this), params.amount);
+        GammaSwapLibrary.safeApprove(lpToken, router, params.amount);
 
         address[] memory lpTokens = new address[](2);
         lpTokens[0] = ICPMM(params.cfmm).token0();
         lpTokens[1] = ICPMM(params.cfmm).token1();
+
+        uint256[] memory reserves;
+        if(isCFMMWithdrawal) {
+            reserves = new uint256[](2);
+            (reserves[0], reserves[1]) = IDeltaSwapRouter02(router).removeLiquidity(lpTokens[0], lpTokens[1], params.amount,
+                params.amountsMin[0], params.amountsMin[1], params.to, type(uint256).max);
+        } else {
+            (reserves,) = IPositionManager(router).withdrawReserves(params);
+        }
 
         if(lpSwap0.path.length > 0 || lpSwap0.uniV3Path.length > 0) {
             if(lpSwap0.uniV3Path.length > 0) {
