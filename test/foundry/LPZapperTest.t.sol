@@ -8,6 +8,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@gammaswap/v1-core/contracts/libraries/GSMath.sol";
 import "./fixtures/CPMMGammaSwapSetup.sol";
 import "../../contracts/LPZapper.sol";
+import "../../contracts/test/TestLPZapper.sol";
 
 contract LPZapperTest is CPMMGammaSwapSetup {
 
@@ -31,7 +32,7 @@ contract LPZapperTest is CPMMGammaSwapSetup {
 
         GammaSwapLibrary.safeTransferETH(address(weth9), 1000_000*1e18);
 
-        lpZapper = new LPZapper(address(weth9), address(factory), address(cfmmFactory), address(posMgr), address(mathLib), address(uniRouter), address(0), address(uniRouter), address(0));
+        lpZapper = new TestLPZapper(address(weth9), address(factory), address(cfmmFactory), address(posMgr), address(mathLib), address(uniRouter), address(0), address(uniRouter), address(0));
         deal(address(weth9), user, 1000*1e18);
         deal(address(weth), user, 1000_000*1e18);
         deal(address(usdc), user, 1000_000*1e18);
@@ -58,6 +59,66 @@ contract LPZapperTest is CPMMGammaSwapSetup {
         depositLiquidityInCFMMByToken(address(usdc6), address(weth), 100*1e6, 100*1e18, addr1);
         depositLiquidityInCFMMByToken(address(usdc6), address(weth), 100*1e6, 100*1e18, addr2);
         depositLiquidityInPoolFromCFMM(pool6x18, cfmm6x18, addr2);
+    }
+
+    function testGetTokenOutErrors() public {
+        address payable addr = payable(address(lpZapper));
+
+        bytes memory pathErr = hex'0c880f6761f1af8d9aa9c466984b80dab9a8c9e8000bb8';
+        vm.expectRevert("toAddress_outOfBounds");
+        TestLPZapper(addr).getTokenOut(pathErr);
+
+        pathErr = hex'0c880f6761f1af8d9aa9c466984b80dab9a8c9e8000b';
+        vm.expectRevert();
+        TestLPZapper(addr).getTokenOut(pathErr);
+
+        pathErr = hex'0c880f6761f1af8d9aa9c466984b80dab9a8c9e800';
+        vm.expectRevert();
+        TestLPZapper(addr).getTokenOut(pathErr);
+
+        pathErr = hex'0c880f6761f1af8d9aa9c466984b80dab9a8c9e8';//000bb8';
+        vm.expectRevert();
+        TestLPZapper(addr).getTokenOut(pathErr);
+
+        pathErr = hex'000bb882af49447d8a07e3bd95bd0d56f35241523fbab1';//000bb8';
+        vm.expectRevert("toAddress_outOfBounds");
+        TestLPZapper(addr).getTokenOut(pathErr);
+
+        pathErr = hex'000b82af49447d8a07e3bd95bd0d56f35241523fbab1';//000b';
+        vm.expectRevert();
+        TestLPZapper(addr).getTokenOut(pathErr);
+
+        pathErr = hex'0082af49447d8a07e3bd95bd0d56f35241523fbab1';//00';
+        vm.expectRevert();
+        TestLPZapper(addr).getTokenOut(pathErr);
+
+        pathErr = hex'984b80dab9a8c9e8000bb882af49447d8a07e3bd95bd0d';
+        vm.expectRevert("toAddress_outOfBounds");
+        TestLPZapper(addr).getTokenOut(pathErr);
+    }
+
+    function testGetTokenOut() public {
+        address payable addr = payable(address(lpZapper));
+
+        bytes memory path0 = hex'0c880f6761f1af8d9aa9c466984b80dab9a8c9e8000bb882af49447d8a07e3bd95bd0d56f35241523fbab1';
+        address tokenOut0 = TestLPZapper(addr).getTokenOut(path0);
+        assertEq(tokenOut0, address(0x82aF49447D8a07e3bd95BD0d56f35241523fBab1));
+        console.log(tokenOut0);
+
+        bytes memory path1 = hex'0c880f6761f1af8d9aa9c466984b80dab9a8c9e8000bb882af49447d8a07e3bd95bd0d56f35241523fbab10001f4af88d065e77c8cc2239327c5edb3a432268e5831';
+        address tokenOut1 = TestLPZapper(addr).getTokenOut(path1);
+        assertEq(tokenOut1,address(0xaf88d065e77c8cC2239327C5EDb3A432268e5831));
+        console.log(tokenOut1);
+
+        bytes memory path2 = hex'0c880f6761f1af8d9aa9c466984b80dab9a8c9e8000bb882af49447d8a07e3bd95bd0d56f35241523fbab10001f4af88d065e77c8cc2239327c5edb3a432268e583100010076991314cEE341ebE37e6E2712cb04F5d56dE355';
+        address tokenOut2 = TestLPZapper(addr).getTokenOut(path2);
+        assertEq(tokenOut2,address(0x76991314cEE341ebE37e6E2712cb04F5d56dE355));
+        console.log(tokenOut2);
+
+        bytes memory path3 = hex'0c880f6761f1af8d9aa9c466984b80dab9a8c9e8000bb882af49447d8a07e3bd95bd0d56f35241523fbab10001f4af88d065e77c8cc2239327c5edb3a432268e583100010076991314cEE341ebE37e6E2712cb04F5d56dE355000100F6D9C101ceeA72655A13a8Cf1C88c1949Ed399bc';
+        address tokenOut3 = TestLPZapper(addr).getTokenOut(path3);
+        assertEq(tokenOut3,address(0xF6D9C101ceeA72655A13a8Cf1C88c1949Ed399bc));
+        console.log(tokenOut3);
     }
 
     function testLPZapperOwner() public {
