@@ -158,11 +158,11 @@ abstract contract BaseZapper is Transfers {
     /// @param path - UniswapV3 swap path
     /// @return tokenOut - last token in path
     function _getTokenOut(bytes memory path) internal view returns(address tokenOut) {
-        bytes memory _path = path.skipToken();
+        bytes memory _path = path;
         while (_path.hasMultiplePools()) {
             _path = _path.skipToken();
         }
-        tokenOut = _path.toAddress(0);
+        tokenOut = _path.skipToken().toAddress(0);
     }
 
     /// @dev Swap fundAmount of tokenIn using CFMM or UniswapV3
