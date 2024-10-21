@@ -17,6 +17,24 @@ jobs:
           scope: '@gammaswap'
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
+          
+      # Clear Foundry Cache (this clears the global cache, ensuring no conflicts)
+      - name: Clear Foundry Cache
+        run: forge clean
+
+      # Install Foundry Dependencies (including forge-std)
+      - name: Install Foundry Dependencies
+        run: |
+          forge install
+          echo "Listing lib directory after install:"
+          ls -la lib
+          echo "Listing forge-std directory:"
+          ls -la lib/forge-std
+
+      # Debug: Print out the contents of the 'lib' directory to verify that dependencies were installed
+      - name: List Foundry lib directory
+        run: ls -R lib
+
       - run: yarn install
         env:
           NODE_AUTH_TOKEN: ${{secrets.GS_TOKEN}}
