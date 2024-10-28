@@ -6,7 +6,7 @@
   </a>
 </p>
 
-<h1 align="center">V1-zapper</h1>
+<h1 align="center">V1-Zapper</h1>
 
 ## Description
 Zapper contract to zap tokens in and out from GammaPool. Supports UniswapV3, UniswapV2, Sushiswap, and DeltaSwap AMMs
