@@ -11,6 +11,8 @@ import "@gammaswap/v1-deltaswap/contracts/interfaces/IDeltaSwapRouter02.sol";
 import "@gammaswap/univ3-rebalancer/contracts/interfaces/ISwapRouter.sol";
 import "@gammaswap/univ3-rebalancer/contracts/libraries/Path.sol";
 import "@gammaswap/univ3-rebalancer/contracts/libraries/BytesLib.sol";
+import "@gammaswap/universal-router/contracts/interfaces/external/IAeroPoolFactory.sol";
+import "./interfaces/external/IAeroPoolRouter.sol";
 
 /// @title BaseZapper contract for all Zapper implementations
 /// @author Daniel D. Alcarraz (https://github.com/0xDanr)
@@ -26,6 +28,9 @@ abstract contract BaseZapper is Transfers {
     /// @dev DeltaSwap factory contract
     address public immutable dsFactory;
 
+    /// @dev Aerodrome factory contract
+    address public immutable aeroFactory;
+
     /// @dev Math library contract for GammaSwap's token rebalancing calculations
     address public immutable mathLib;
 
@@ -38,13 +43,17 @@ abstract contract BaseZapper is Transfers {
     /// @dev DeltaSwap CFMM router
     address public immutable dsRouter;
 
+    /// @dev Aerodrome CFMM router
+    address public immutable aeroRouter;
+
     /// @dev UniswapV3 CFMM router
     address public immutable uniV3Router;
 
-    /// @dev Initializes the contract by setting `WETH`, `factory`, `dsFactory`, `mathLib`, `uniV2Router`, `sushiRouter`, `dsRouter`, and `uniV3Router`.
-    constructor(address _WETH, address _factory, address _dsFactory, address _mathLib, address _uniV2Router, address _sushiRouter, address _dsRouter, address _uniV3Router) Transfers(_WETH){
+    /// @dev Initializes the contract by setting `WETH`, `factory`, `dsFactory`, `aeroFactory`, `mathLib`, `uniV2Router`, `sushiRouter`, `dsRouter`, 'aeroRouter, and `uniV3Router`.
+    constructor(address _WETH, address _factory, address _dsFactory, address _aeroFactory, address _mathLib, address _uniV2Router, address _sushiRouter, address _dsRouter, address _aeroRouter, address _uniV3Router) Transfers(_WETH){
         factory = _factory;
         dsFactory = _dsFactory;
+        aeroFactory = _aeroFactory;
         mathLib = _mathLib;
         uniV2Router = _uniV2Router;
         sushiRouter = _sushiRouter;
@@ -98,7 +107,24 @@ abstract contract BaseZapper is Transfers {
 
         GammaSwapLibrary.safeApprove(tokenIn, router, amountIn);
 
-        IDeltaSwapRouter02(router).swapExactTokensForTokens(amountIn, amountOutMin, path, to, block.timestamp); // the last amounts is what was obtained
+        if(protocolId == 4) {
+            IAeroPoolRouter.Route[] memory routes = new IAeroPoolRouter.Route[]((path.length + 1) / 2);
+            for(uint256 i = 0; i < path.length - 1;) {
+                routes[i] = IAeroPoolRouter.Route({
+                    from: path[i],
+                    to: path[i + 1],
+                    stable: false,
+                    factory: aeroFactory
+                });
+                unchecked {
+                    ++i;
+                }
+            }
+
+            IAeroPoolRouter(router).swapExactTokensForTokens(amountIn, amountOutMin, routes, to, block.timestamp);
+        } else {
+            IDeltaSwapRouter02(router).swapExactTokensForTokens(amountIn, amountOutMin, path, to, block.timestamp); // the last amounts is what was obtained
+        }
     }
 
     function _getCFMMRouter(uint256 protocolId) internal virtual view returns(address) {
@@ -112,6 +138,9 @@ abstract contract BaseZapper is Transfers {
         } else if(protocolId == 3) {
             require(dsRouter != address(0), "LP_ZAPPER: DS_ROUTER_NOT_FOUND");
             router = dsRouter;
+        } else if(protocolId == 4) {
+            require(aeroRouter != address(0), "LP_ZAPPER: AERO_ROUTER_NOT_FOUND");
+            router = aeroRouter;
         }
 
         require(router != address(0), "LP_ZAPPER: PROTOCOL_NOT_FOUND");
@@ -209,6 +238,9 @@ abstract contract BaseZapper is Transfers {
         uint256 fee2 = 1000;
         if(protocolId == 3) {
             fee1 = 1000 - IDeltaSwapFactory(dsFactory).dsFee();
+        } else if(protocolId == 4) {
+            fee1 = 10000 - IAeroPoolFactory(aeroFactory).getFee(cfmm, false);
+            fee2 = 10000;
         }
         uint128[] memory reserves = new uint128[](2);
         (reserves[0], reserves[1],) = ICPMM(cfmm).getReserves();

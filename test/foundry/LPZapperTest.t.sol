@@ -32,7 +32,7 @@ contract LPZapperTest is CPMMGammaSwapSetup {
 
         GammaSwapLibrary.safeTransferETH(address(weth9), 1000_000*1e18);
 
-        lpZapper = new TestLPZapper(address(weth9), address(factory), address(cfmmFactory), address(posMgr), address(mathLib), address(uniRouter), address(0), address(uniRouter), address(0));
+        lpZapper = new TestLPZapper(address(weth9), address(factory), address(cfmmFactory), address(0), address(posMgr), address(mathLib), address(uniRouter), address(0), address(uniRouter), address(0), address(0));
         deal(address(weth9), user, 1000*1e18);
         deal(address(weth), user, 1000_000*1e18);
         deal(address(usdc), user, 1000_000*1e18);
