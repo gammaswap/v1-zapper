@@ -170,8 +170,13 @@ contract LPZapper is Initializable, UUPSUpgradeable, Ownable2Step, ILPZapper, Ba
         uint256[] memory reserves;
         if(isCFMMWithdrawal) {
             reserves = new uint256[](2);
-            (reserves[0], reserves[1]) = IDeltaSwapRouter02(router).removeLiquidity(lpTokens[0], lpTokens[1], params.amount,
-                params.amountsMin[0], params.amountsMin[1], params.to, type(uint256).max);
+            if(params.protocolId == 4) {
+                (reserves[0], reserves[1]) = IAeroPoolRouter(router).removeLiquidity(lpTokens[0], lpTokens[1], false, params.amount,
+                    params.amountsMin[0], params.amountsMin[1], params.to, type(uint256).max);
+            } else {
+                (reserves[0], reserves[1]) = IDeltaSwapRouter02(router).removeLiquidity(lpTokens[0], lpTokens[1], params.amount,
+                    params.amountsMin[0], params.amountsMin[1], params.to, type(uint256).max);
+            }
         } else {
             (reserves,) = IPositionManager(router).withdrawReserves(params);
         }
