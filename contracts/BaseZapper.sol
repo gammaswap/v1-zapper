@@ -90,7 +90,7 @@ abstract contract BaseZapper is Transfers {
     /// @param amountOutMin - expected amount to get from swap with UniswapV3 (slippage control)
     /// @param path - path of tokens to follow to perform swap using CFMM of protocolId
     /// @param to - address receiving tokens from sale of tokenIn
-    function _swap(address tokenIn, uint256 amountIn, uint256 amountOutMin, address[] memory path, uint256 protocolId, address to) internal {
+    function _swap(address tokenIn, uint256 amountIn, uint256 amountOutMin, address[] memory path, uint256 protocolId, address to) internal virtual {
         require(tokenIn == path[0] && tokenIn != path[path.length - 1], "LP_ZAPPER: INVALID_PATH");
         require(protocolId > 0, "LP_ZAPPER: INVALID_PROTOCOL");
 
@@ -101,7 +101,7 @@ abstract contract BaseZapper is Transfers {
         IDeltaSwapRouter02(router).swapExactTokensForTokens(amountIn, amountOutMin, path, to, block.timestamp); // the last amounts is what was obtained
     }
 
-    function _getCFMMRouter(uint256 protocolId) internal view returns(address) {
+    function _getCFMMRouter(uint256 protocolId) internal virtual view returns(address) {
         address router;
         if(protocolId == 1) {
             require(uniV2Router != address(0), "LP_ZAPPER: UNIV2_ROUTER_NOT_FOUND");
@@ -204,7 +204,7 @@ abstract contract BaseZapper is Transfers {
     /// @param tokenIn - token being swapped into token0 or token1
     /// @param fundAmount - amount of tokenIn being swapped
     /// @return sellAmount - amount to sell of tokenIn to convert tokenIn into the same ratio of the CFMM tokens post swap
-    function _calcSellAmount(address cfmm, uint16 protocolId, address token0, address token1, address tokenIn, uint256 fundAmount) internal view returns(uint256 sellAmount) {
+    function _calcSellAmount(address cfmm, uint16 protocolId, address token0, address token1, address tokenIn, uint256 fundAmount) internal virtual view returns(uint256 sellAmount) {
         uint256 fee1 = 997;
         uint256 fee2 = 1000;
         if(protocolId == 3) {

@@ -54,6 +54,7 @@
   },
   "dependencies": {
     "@gammaswap/univ3-rebalancer": "^1.2.1",
+    "@gammaswap/universal-router": "^1.6.0",
     "@gammaswap/v1-core": "^1.2.11",
     "@gammaswap/v1-deltaswap": "^0.8.1",
     "@gammaswap/v1-implementations": "^1.2.11",
