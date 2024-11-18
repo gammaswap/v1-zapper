@@ -63,7 +63,7 @@ abstract contract BaseZapper is Transfers {
     /// @param amountOutMin - expected amount to get from swap with UniswapV3 (slippage control)
     /// @param path - path of UniswapV3 pools to follow to perform swap
     /// @param to - address receiving tokens from sale of tokenIn
-    function _uniV3Swap(address tokenIn, uint256 amountIn, uint256 amountOutMin, bytes memory path, address to) internal {
+    function _uniV3Swap(address tokenIn, uint256 amountIn, uint256 amountOutMin, bytes memory path, address to) internal virtual {
         (address _tokenIn,,) = path.decodeFirstPool();
         require(tokenIn == _tokenIn, "LP_ZAPPER: INVALID_UNIV3_PATH");
         require(uniV3Router != address(0), "LP_ZAPPER: UNIV3_ROUTER_NOT_FOUND");
@@ -157,7 +157,7 @@ abstract contract BaseZapper is Transfers {
     /// @dev Get last token from UniswapV3 path
     /// @param path - UniswapV3 swap path
     /// @return tokenOut - last token in path
-    function _getTokenOut(bytes memory path) internal view returns(address tokenOut) {
+    function _getTokenOut(bytes memory path) internal virtual view returns(address tokenOut) {
         bytes memory _path = path;
         while (_path.hasMultiplePools()) {
             _path = _path.skipToken();
