@@ -147,6 +147,16 @@ contract LPZapper is Initializable, UUPSUpgradeable, Ownable2Step, ILPZapper, Ba
         _zapOutToken(params, lpSwap0, lpSwap1, true);
     }
 
+    function _removeCFMMLiquidity(address router, address token0, address token1, IPositionManager.WithdrawReservesParams memory params) internal virtual returns(uint256 reserve0, uint256 reserve1) {
+        if(params.protocolId == 4) {
+            (reserve0, reserve1) = IAeroPoolRouter(router).removeLiquidity(token0, token1, false, params.amount,
+                params.amountsMin[0], params.amountsMin[1], params.to, type(uint256).max);
+        } else {
+            (reserve0, reserve1) = IDeltaSwapRouter02(router).removeLiquidity(token0, token1, params.amount,
+                params.amountsMin[0], params.amountsMin[1], params.to, type(uint256).max);
+        }
+    }
+
     /// @notice Slippage of conversion of tokens after withdrawal is handled by the amount parameter of the LPSwapParams structs lpSwap0 and lpSwap1
     /// @notice If no instructions are provided in lpSwap0 and/or lpSwap1 then the token is withdrawn as the token of the GammaPool
     /// @dev Set isCFMMWithdrawal to true if withdrawing from CFMM specified in `params`
@@ -170,13 +180,7 @@ contract LPZapper is Initializable, UUPSUpgradeable, Ownable2Step, ILPZapper, Ba
         uint256[] memory reserves;
         if(isCFMMWithdrawal) {
             reserves = new uint256[](2);
-            if(params.protocolId == 4) {
-                (reserves[0], reserves[1]) = IAeroPoolRouter(router).removeLiquidity(lpTokens[0], lpTokens[1], false, params.amount,
-                    params.amountsMin[0], params.amountsMin[1], params.to, type(uint256).max);
-            } else {
-                (reserves[0], reserves[1]) = IDeltaSwapRouter02(router).removeLiquidity(lpTokens[0], lpTokens[1], params.amount,
-                    params.amountsMin[0], params.amountsMin[1], params.to, type(uint256).max);
-            }
+            (reserves[0], reserves[1]) = _removeCFMMLiquidity(router, lpTokens[0], lpTokens[1], params);
         } else {
             (reserves,) = IPositionManager(router).withdrawReserves(params);
         }
