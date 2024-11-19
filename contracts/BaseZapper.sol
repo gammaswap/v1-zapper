@@ -9,8 +9,9 @@ import "@gammaswap/v1-periphery/contracts/base/Transfers.sol";
 import "@gammaswap/v1-deltaswap/contracts/interfaces/IDeltaSwapFactory.sol";
 import "@gammaswap/v1-deltaswap/contracts/interfaces/IDeltaSwapRouter02.sol";
 import "@gammaswap/univ3-rebalancer/contracts/interfaces/ISwapRouter.sol";
-import "@gammaswap/univ3-rebalancer/contracts/libraries/Path.sol";
-import "@gammaswap/univ3-rebalancer/contracts/libraries/BytesLib.sol";
+import "@gammaswap/universal-router/contracts/libraries/Path2.sol";
+import "@gammaswap/universal-router/contracts/libraries/BytesLib2.sol";
+import "@gammaswap/universal-router/contracts/interfaces/IUniversalRouter.sol";
 import "@gammaswap/universal-router/contracts/interfaces/external/IAeroPoolFactory.sol";
 import "./interfaces/external/IAeroPoolRouter.sol";
 
@@ -19,8 +20,8 @@ import "./interfaces/external/IAeroPoolRouter.sol";
 /// @dev Base contract with common functions used by zapper implementations
 abstract contract BaseZapper is Transfers {
 
-    using Path for bytes;
-    using BytesLib for bytes;
+    using Path2 for bytes;
+    using BytesLib2 for bytes;
 
     /// @dev GammaPool factory contract
     address public immutable factory;
@@ -73,24 +74,15 @@ abstract contract BaseZapper is Transfers {
     /// @param path - path of UniswapV3 pools to follow to perform swap
     /// @param to - address receiving tokens from sale of tokenIn
     function _uniV3Swap(address tokenIn, uint256 amountIn, uint256 amountOutMin, bytes memory path, address to) internal virtual {
-        (address _tokenIn,,) = path.decodeFirstPool();
+        (address _tokenIn,,,) = path.decodeFirstPool();
         require(tokenIn == _tokenIn, "LP_ZAPPER: INVALID_UNIV3_PATH");
         require(uniV3Router != address(0), "LP_ZAPPER: UNIV3_ROUTER_NOT_FOUND");
 
-        // fund router
-        GammaSwapLibrary.safeTransfer(tokenIn, uniV3Router, amountIn);
+        // approve router
+        GammaSwapLibrary.safeApprove(tokenIn, uniV3Router, amountIn);
 
-        ISwapRouter.ExactInputParams memory params =
-            ISwapRouter.ExactInputParams({
-                path: path,
-                recipient: to,
-                deadline: block.timestamp,
-                amountIn: amountIn,
-                amountOutMinimum: amountOutMin // minimum of receiving token
-        });
-
-        // Executes the swap.
-        ISwapRouter(uniV3Router).exactInput(params);
+        // Executes the swap
+        IUniversalRouter(uniV3Router).swapExactTokensForTokens(amountIn, amountOutMin, path, to, block.timestamp);
     }
 
     /// @dev function to swap tokenIn through path using an UniswapV2 style CFMM. Always sells amountIn of tokenIn

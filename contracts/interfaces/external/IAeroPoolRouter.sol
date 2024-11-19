@@ -3,6 +3,7 @@ pragma solidity ^0.8.0;
 
 import "@gammaswap/v1-periphery/contracts/interfaces/external/IWETH.sol";
 
+/// @title Interface for the Aerodrome Router
 interface IAeroPoolRouter {
     struct Route {
         address from;
