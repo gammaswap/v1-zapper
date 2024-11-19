@@ -17,8 +17,8 @@ contract LPZapper is Initializable, UUPSUpgradeable, Ownable2Step, ILPZapper, Ba
     address public immutable positionManager;
 
     /// @dev See {BaseZapper-constructor}
-    constructor(address _WETH, address _factory, address _dsFactory, address _positionManager, address _mathLib, address _uniV2Router, address _sushiRouter, address _dsRouter, address _uniV3Router)
-        BaseZapper(_WETH, _factory, _dsFactory, _mathLib, _uniV2Router, _sushiRouter, _dsRouter, _uniV3Router) {
+    constructor(address _WETH, address _factory, address _dsFactory, address _aeroFactory, address _positionManager, address _mathLib, address _uniV2Router, address _sushiRouter, address _dsRouter, address _aeroRouter, address _uniV3Router)
+        BaseZapper(_WETH, _factory, _dsFactory, _aeroFactory, _mathLib, _uniV2Router, _sushiRouter, _dsRouter, _aeroRouter, _uniV3Router) {
         positionManager = _positionManager;
     }
 
@@ -170,8 +170,7 @@ contract LPZapper is Initializable, UUPSUpgradeable, Ownable2Step, ILPZapper, Ba
         uint256[] memory reserves;
         if(isCFMMWithdrawal) {
             reserves = new uint256[](2);
-            (reserves[0], reserves[1]) = IDeltaSwapRouter02(router).removeLiquidity(lpTokens[0], lpTokens[1], params.amount,
-                params.amountsMin[0], params.amountsMin[1], params.to, type(uint256).max);
+            (reserves[0], reserves[1]) = _removeCFMMLiquidity(router, lpTokens[0], lpTokens[1], params);
         } else {
             (reserves,) = IPositionManager(router).withdrawReserves(params);
         }
@@ -193,6 +192,16 @@ contract LPZapper is Initializable, UUPSUpgradeable, Ownable2Step, ILPZapper, Ba
             }
         } else {
             GammaSwapLibrary.safeTransfer(lpTokens[1], to, reserves[1]);
+        }
+    }
+
+    function _removeCFMMLiquidity(address router, address token0, address token1, IPositionManager.WithdrawReservesParams memory params) internal virtual returns(uint256 reserve0, uint256 reserve1) {
+        if(params.protocolId == 4) {
+            (reserve0, reserve1) = IAeroPoolRouter(router).removeLiquidity(token0, token1, false, params.amount,
+                params.amountsMin[0], params.amountsMin[1], params.to, type(uint256).max);
+        } else {
+            (reserve0, reserve1) = IDeltaSwapRouter02(router).removeLiquidity(token0, token1, params.amount,
+                params.amountsMin[0], params.amountsMin[1], params.to, type(uint256).max);
         }
     }
 

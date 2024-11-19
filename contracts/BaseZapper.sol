@@ -9,22 +9,28 @@ import "@gammaswap/v1-periphery/contracts/base/Transfers.sol";
 import "@gammaswap/v1-deltaswap/contracts/interfaces/IDeltaSwapFactory.sol";
 import "@gammaswap/v1-deltaswap/contracts/interfaces/IDeltaSwapRouter02.sol";
 import "@gammaswap/univ3-rebalancer/contracts/interfaces/ISwapRouter.sol";
-import "@gammaswap/univ3-rebalancer/contracts/libraries/Path.sol";
-import "@gammaswap/univ3-rebalancer/contracts/libraries/BytesLib.sol";
+import "@gammaswap/universal-router/contracts/libraries/Path2.sol";
+import "@gammaswap/universal-router/contracts/libraries/BytesLib2.sol";
+import "@gammaswap/universal-router/contracts/interfaces/IUniversalRouter.sol";
+import "@gammaswap/universal-router/contracts/interfaces/external/IAeroPoolFactory.sol";
+import "./interfaces/external/IAeroPoolRouter.sol";
 
 /// @title BaseZapper contract for all Zapper implementations
 /// @author Daniel D. Alcarraz (https://github.com/0xDanr)
 /// @dev Base contract with common functions used by zapper implementations
 abstract contract BaseZapper is Transfers {
 
-    using Path for bytes;
-    using BytesLib for bytes;
+    using Path2 for bytes;
+    using BytesLib2 for bytes;
 
     /// @dev GammaPool factory contract
     address public immutable factory;
 
     /// @dev DeltaSwap factory contract
     address public immutable dsFactory;
+
+    /// @dev Aerodrome factory contract
+    address public immutable aeroFactory;
 
     /// @dev Math library contract for GammaSwap's token rebalancing calculations
     address public immutable mathLib;
@@ -38,13 +44,17 @@ abstract contract BaseZapper is Transfers {
     /// @dev DeltaSwap CFMM router
     address public immutable dsRouter;
 
+    /// @dev Aerodrome CFMM router
+    address public immutable aeroRouter;
+
     /// @dev UniswapV3 CFMM router
     address public immutable uniV3Router;
 
-    /// @dev Initializes the contract by setting `WETH`, `factory`, `dsFactory`, `mathLib`, `uniV2Router`, `sushiRouter`, `dsRouter`, and `uniV3Router`.
-    constructor(address _WETH, address _factory, address _dsFactory, address _mathLib, address _uniV2Router, address _sushiRouter, address _dsRouter, address _uniV3Router) Transfers(_WETH){
+    /// @dev Initializes the contract by setting `WETH`, `factory`, `dsFactory`, `aeroFactory`, `mathLib`, `uniV2Router`, `sushiRouter`, `dsRouter`, 'aeroRouter, and `uniV3Router`.
+    constructor(address _WETH, address _factory, address _dsFactory, address _aeroFactory, address _mathLib, address _uniV2Router, address _sushiRouter, address _dsRouter, address _aeroRouter, address _uniV3Router) Transfers(_WETH){
         factory = _factory;
         dsFactory = _dsFactory;
+        aeroFactory = _aeroFactory;
         mathLib = _mathLib;
         uniV2Router = _uniV2Router;
         sushiRouter = _sushiRouter;
@@ -63,25 +73,16 @@ abstract contract BaseZapper is Transfers {
     /// @param amountOutMin - expected amount to get from swap with UniswapV3 (slippage control)
     /// @param path - path of UniswapV3 pools to follow to perform swap
     /// @param to - address receiving tokens from sale of tokenIn
-    function _uniV3Swap(address tokenIn, uint256 amountIn, uint256 amountOutMin, bytes memory path, address to) internal {
-        (address _tokenIn,,) = path.decodeFirstPool();
+    function _uniV3Swap(address tokenIn, uint256 amountIn, uint256 amountOutMin, bytes memory path, address to) internal virtual {
+        (address _tokenIn,,,) = path.decodeFirstPool();
         require(tokenIn == _tokenIn, "LP_ZAPPER: INVALID_UNIV3_PATH");
         require(uniV3Router != address(0), "LP_ZAPPER: UNIV3_ROUTER_NOT_FOUND");
 
-        // fund router
-        GammaSwapLibrary.safeTransfer(tokenIn, uniV3Router, amountIn);
+        // approve router
+        GammaSwapLibrary.safeApprove(tokenIn, uniV3Router, amountIn);
 
-        ISwapRouter.ExactInputParams memory params =
-            ISwapRouter.ExactInputParams({
-                path: path,
-                recipient: to,
-                deadline: block.timestamp,
-                amountIn: amountIn,
-                amountOutMinimum: amountOutMin // minimum of receiving token
-        });
-
-        // Executes the swap.
-        ISwapRouter(uniV3Router).exactInput(params);
+        // Executes the swap
+        IUniversalRouter(uniV3Router).swapExactTokensForTokens(amountIn, amountOutMin, path, to, block.timestamp);
     }
 
     /// @dev function to swap tokenIn through path using an UniswapV2 style CFMM. Always sells amountIn of tokenIn
@@ -90,7 +91,7 @@ abstract contract BaseZapper is Transfers {
     /// @param amountOutMin - expected amount to get from swap with UniswapV3 (slippage control)
     /// @param path - path of tokens to follow to perform swap using CFMM of protocolId
     /// @param to - address receiving tokens from sale of tokenIn
-    function _swap(address tokenIn, uint256 amountIn, uint256 amountOutMin, address[] memory path, uint256 protocolId, address to) internal {
+    function _swap(address tokenIn, uint256 amountIn, uint256 amountOutMin, address[] memory path, uint256 protocolId, address to) internal virtual {
         require(tokenIn == path[0] && tokenIn != path[path.length - 1], "LP_ZAPPER: INVALID_PATH");
         require(protocolId > 0, "LP_ZAPPER: INVALID_PROTOCOL");
 
@@ -98,10 +99,27 @@ abstract contract BaseZapper is Transfers {
 
         GammaSwapLibrary.safeApprove(tokenIn, router, amountIn);
 
-        IDeltaSwapRouter02(router).swapExactTokensForTokens(amountIn, amountOutMin, path, to, block.timestamp); // the last amounts is what was obtained
+        if(protocolId == 4) {
+            IAeroPoolRouter.Route[] memory routes = new IAeroPoolRouter.Route[]((path.length + 1) / 2);
+            for(uint256 i = 0; i < path.length - 1;) {
+                routes[i] = IAeroPoolRouter.Route({
+                    from: path[i],
+                    to: path[i + 1],
+                    stable: false,
+                    factory: aeroFactory
+                });
+                unchecked {
+                    ++i;
+                }
+            }
+
+            IAeroPoolRouter(router).swapExactTokensForTokens(amountIn, amountOutMin, routes, to, block.timestamp);
+        } else {
+            IDeltaSwapRouter02(router).swapExactTokensForTokens(amountIn, amountOutMin, path, to, block.timestamp); // the last amounts is what was obtained
+        }
     }
 
-    function _getCFMMRouter(uint256 protocolId) internal view returns(address) {
+    function _getCFMMRouter(uint256 protocolId) internal virtual view returns(address) {
         address router;
         if(protocolId == 1) {
             require(uniV2Router != address(0), "LP_ZAPPER: UNIV2_ROUTER_NOT_FOUND");
@@ -112,6 +130,9 @@ abstract contract BaseZapper is Transfers {
         } else if(protocolId == 3) {
             require(dsRouter != address(0), "LP_ZAPPER: DS_ROUTER_NOT_FOUND");
             router = dsRouter;
+        } else if(protocolId == 4) {
+            require(aeroRouter != address(0), "LP_ZAPPER: AERO_ROUTER_NOT_FOUND");
+            router = aeroRouter;
         }
 
         require(router != address(0), "LP_ZAPPER: PROTOCOL_NOT_FOUND");
@@ -157,7 +178,7 @@ abstract contract BaseZapper is Transfers {
     /// @dev Get last token from UniswapV3 path
     /// @param path - UniswapV3 swap path
     /// @return tokenOut - last token in path
-    function _getTokenOut(bytes memory path) internal view returns(address tokenOut) {
+    function _getTokenOut(bytes memory path) internal virtual view returns(address tokenOut) {
         bytes memory _path = path;
         while (_path.hasMultiplePools()) {
             _path = _path.skipToken();
@@ -204,11 +225,14 @@ abstract contract BaseZapper is Transfers {
     /// @param tokenIn - token being swapped into token0 or token1
     /// @param fundAmount - amount of tokenIn being swapped
     /// @return sellAmount - amount to sell of tokenIn to convert tokenIn into the same ratio of the CFMM tokens post swap
-    function _calcSellAmount(address cfmm, uint16 protocolId, address token0, address token1, address tokenIn, uint256 fundAmount) internal view returns(uint256 sellAmount) {
+    function _calcSellAmount(address cfmm, uint16 protocolId, address token0, address token1, address tokenIn, uint256 fundAmount) internal virtual view returns(uint256 sellAmount) {
         uint256 fee1 = 997;
         uint256 fee2 = 1000;
         if(protocolId == 3) {
             fee1 = 1000 - IDeltaSwapFactory(dsFactory).dsFee();
+        } else if(protocolId == 4) {
+            fee1 = 10000 - IAeroPoolFactory(aeroFactory).getFee(cfmm, false);
+            fee2 = 10000;
         }
         uint128[] memory reserves = new uint128[](2);
         (reserves[0], reserves[1],) = ICPMM(cfmm).getReserves();
