@@ -59,6 +59,7 @@ abstract contract BaseZapper is Transfers {
         uniV2Router = _uniV2Router;
         sushiRouter = _sushiRouter;
         dsRouter = _dsRouter;
+        aeroRouter = _aeroRouter;
         uniV3Router = _uniV3Router;
     }
 
